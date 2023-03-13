@@ -220,7 +220,7 @@ def parse_streamer_from_csv_filename(csv_filename):
 
 def parse_vod_filename(m3u8_vod_filename):
     base = os.path.basename(m3u8_vod_filename)
-    streamer_name, vod_id = base.split('VodRecovery_', 1)[1].split('.m3u8', 1)[0].rsplit('_', 1)
+    streamer_name, vod_id = base.split('vodrecovery_', 1)[1].split('.m3u8', 1)[0].rsplit('_', 1)
     return f"{streamer_name}_{vod_id}"
 
 
@@ -292,7 +292,7 @@ def parse_duration_sullygnome(tracker_url):
     response = requests.get(tracker_url, headers=return_header(), allow_redirects=False)
     if check_response_status_code(response):
         bs = BeautifulSoup(response.content, 'html.parser')
-        sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.strip().replace("hours", "").replace("minutes", "").split(",")
+        sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.strip().replace("hours", "").replace("hour", "").replace("minutes", "").split(",")
         return get_duration(int(sullygnome_duration[0]), int(sullygnome_duration[1]))
 
 
