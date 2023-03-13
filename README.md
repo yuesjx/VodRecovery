@@ -64,7 +64,8 @@ Please choose an option:
 
 # Additional Notes
 * Provide at least one example when creating an issue
-* If the script returns no results, try vods from other streamers. If the other vods return results, it is likely that the original vods don't exist.
+* If the script returns no results, try vods from other streamers. If the other vods return results, it is likely that the original vods don't exist
+* Any vod requests that exceed [Twitch's vod retention policy](https://help.twitch.tv/s/article/video-on-demand) will be ignored
 
 # Support the Project
 * Donations are appreciated but not expected - [PayPal](https://paypal.me/VodRecovery)
