@@ -714,12 +714,18 @@ def random_clip_recovery():
 def bulk_clip_recovery():
     vod_counter, total_counter, valid_counter, iteration_counter = 0, 0, 0, 0
     request_config = vodrecovery_config["REQUESTS"]
-    is_multiple = input("Do you have more then one CSV file? ")
+    is_multiple = input("Do you have more than one CSV file? ")
     if is_multiple.upper() == "Y":
         csv_directory = remove_whitespace_and_lowercase(input("Enter the full path where the sullygnome csv files exist: ").replace('"', ''))
-        streamer_name = input("Enter streamers name: ")
-        merge_csv_files(streamer_name, csv_directory)
-        csv_file_path = join_and_normalize_path(csv_directory, f"{streamer_name.title()}_MERGED.csv")
+        streamer_name = input("Enter the streamer's name: ")
+        merge_files = input("Do you want to merge the CSV files in the directory? (Y/N): ")
+        if merge_files.upper() == "Y":
+            merge_csv_files(streamer_name, csv_directory)
+            csv_file_path = join_and_normalize_path(csv_directory, f"{streamer_name.title()}_MERGED.csv")
+        else:
+            csv_file_path = input("Enter full path of sullygnome CSV file: ")
+            csv_file_path = remove_whitespace_and_lowercase(csv_file_path.replace('"', ''))
+            streamer_name = parse_streamer_from_csv_filename(csv_file_path)
     else:
         csv_file_path = remove_whitespace_and_lowercase(input("Enter full path of sullygnome CSV file: ").replace('"', ''))
         streamer_name = parse_streamer_from_csv_filename(csv_file_path)
