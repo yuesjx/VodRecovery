@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import json
+import csv
 import os
 import random
 import re
@@ -664,6 +665,24 @@ def parse_vod_csv_file(file_path):
     return vod_info_dict
 
 
+def merge_csv_files(csv_filename, path):
+    csv_list = [file for file in os.listdir(path) if file.endswith(".csv")]
+    header_saved = False
+    with open(os.path.join(path, f"{csv_filename.title()}_MERGED.csv"), "w", newline="") as output_file:
+        writer = csv.writer(output_file)
+        for file in csv_list:
+            with open(os.path.join(path, file), "r") as f_in:
+                reader = csv.reader(f_in)
+                header = next(reader)
+                if not header_saved:
+                    writer.writerow(header)
+                    header_saved = True
+                for row in reader:
+                    writer.writerow(row)
+            os.remove(os.path.join(path, file))
+    print("CSV files merged and original files deleted successfully!")
+
+
 def random_clip_recovery():
     counter = 0
     display_limit = 5
@@ -695,17 +714,24 @@ def random_clip_recovery():
 def bulk_clip_recovery():
     vod_counter, total_counter, valid_counter, iteration_counter = 0, 0, 0, 0
     request_config = vodrecovery_config["REQUESTS"]
-    file_path = remove_whitespace_and_lowercase(input("Enter full path of sullygnome CSV file: ").replace('"', ''))
-    streamer_name = parse_streamer_from_csv_filename(file_path)
+    is_multiple = input("Do you have more then one CSV file? ")
+    if is_multiple.upper() == "Y":
+        csv_directory = remove_whitespace_and_lowercase(input("Enter the full path where the sullygnome csv files exist: ").replace('"', ''))
+        streamer_name = input("Enter streamers name: ")
+        merge_csv_files(streamer_name, csv_directory)
+        csv_file_path = join_and_normalize_path(csv_directory, f"{streamer_name.title()}_MERGED.csv")
+    else:
+        csv_file_path = remove_whitespace_and_lowercase(input("Enter full path of sullygnome CSV file: ").replace('"', ''))
+        streamer_name = parse_streamer_from_csv_filename(csv_file_path)
     user_option = input("Do you want to download all clips recovered (Y/N)? ")
     print_clip_format_menu()
     clip_format = input("Please choose an option: ").split(" ")
-    for vod_id, values in parse_clip_csv_file(file_path).items():
+    for vod_id, values in parse_clip_csv_file(csv_file_path).items():
         vod_counter += 1
         print("\nProcessing Past Broadcast: \n"
-              + "Stream Date: " + values[0] + "\n"
+              + "Stream Date: " + values[0].replace("-", " ") + "\n"
               + "Vod ID: " + str(vod_id) + "\n"
-              + "Vod Number: " + str(vod_counter) + " of " + str(len(parse_clip_csv_file(file_path))) + "\n")
+              + "Vod Number: " + str(vod_counter) + " of " + str(len(parse_clip_csv_file(csv_file_path))) + "\n")
         original_vod_url_list = get_all_clip_urls(get_clip_format(vod_id, values[1]), clip_format)
         request_session = requests.Session()
         rs = [grequests.head(u, session=request_session) for u in original_vod_url_list]
@@ -772,7 +798,7 @@ def download_clips(directory, streamer_name, vod_id):
         if str(link_url).endswith(".mp4"):
             with open(join_and_normalize_path(download_directory, streamer_name.title() + "_" + str(vod_id) + "_" + str(
                     extract_offset(links))) + ".mp4", 'wb') as x:
-                print(datetime.datetime.now().strftime("%Y/%m/%d %I:%M:%S    ") + "Downloading... Clip " + str(
+                print("Downloading Clip... " + str(
                     counter) + " of " + str(len(return_file_contents(streamer_name, vod_id))) + " - " + links)
                 x.write(response.content)
         else:
@@ -868,6 +894,8 @@ def run_script():
                 else:
                     download_m3u8_video_file(m3u8_file_path, parse_vod_filename(m3u8_file_path) + ".mp4")
                     print("Vod downloaded to {}".format(join_and_normalize_path(get_default_directory(), parse_vod_filename(m3u8_file_path) + ".mp4")))
+            elif download_type == 3:
+                exit()
         else:
             print("Invalid Option! Exiting...")
 
