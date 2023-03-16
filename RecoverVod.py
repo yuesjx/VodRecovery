@@ -78,6 +78,11 @@ def print_clip_type_menu():
     print(clip_type_menu)
 
 
+def print_bulk_clip_recovery_menu():
+    bulk_clip_recovery_menu = "1) Single CSV file" + "\n" + "2) Multiple CSV files" + "\n" + "3) Exit" + "\n"
+    print(bulk_clip_recovery_menu)
+
+
 def print_clip_recovery_menu():
     clip_recovery_method = "Enter clip recovery method: " + "\n" + "1) Manual Clip Recover" + "\n" + "2) Website Clip Recover" + "\n" + "3) Exit" + "\n"
     print(clip_recovery_method)
@@ -713,9 +718,14 @@ def random_clip_recovery():
 
 def bulk_clip_recovery():
     vod_counter, total_counter, valid_counter, iteration_counter = 0, 0, 0, 0
+    streamer_name, csv_file_path = "", ""
     request_config = vodrecovery_config["REQUESTS"]
-    is_multiple = input("Do you have more than one CSV file? ")
-    if is_multiple.upper() == "Y":
+    print_bulk_clip_recovery_menu()
+    bulk_recovery_option = input("Please choose an option: ")
+    if bulk_recovery_option == "1":
+        csv_file_path = remove_whitespace_and_lowercase(input("Enter full path of sullygnome CSV file: ").replace('"', ''))
+        streamer_name = parse_streamer_from_csv_filename(csv_file_path)
+    elif bulk_recovery_option == "2":
         csv_directory = remove_whitespace_and_lowercase(input("Enter the full path where the sullygnome csv files exist: ").replace('"', ''))
         streamer_name = input("Enter the streamer's name: ")
         merge_files = input("Do you want to merge the CSV files in the directory? (Y/N): ")
@@ -726,9 +736,8 @@ def bulk_clip_recovery():
             csv_file_path = input("Enter full path of sullygnome CSV file: ")
             csv_file_path = remove_whitespace_and_lowercase(csv_file_path.replace('"', ''))
             streamer_name = parse_streamer_from_csv_filename(csv_file_path)
-    else:
-        csv_file_path = remove_whitespace_and_lowercase(input("Enter full path of sullygnome CSV file: ").replace('"', ''))
-        streamer_name = parse_streamer_from_csv_filename(csv_file_path)
+    elif bulk_recovery_option == "3":
+        exit()
     user_option = input("Do you want to download all clips recovered (Y/N)? ")
     print_clip_format_menu()
     clip_format = input("Please choose an option: ").split(" ")
