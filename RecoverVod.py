@@ -684,8 +684,7 @@ def merge_csv_files(csv_filename, path):
                     header_saved = True
                 for row in reader:
                     writer.writerow(row)
-            os.remove(os.path.join(path, file))
-    print("CSV files merged and original files deleted successfully!")
+    print("CSV files merged successfully!")
 
 
 def random_clip_recovery():
