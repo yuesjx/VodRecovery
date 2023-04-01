@@ -2,7 +2,7 @@
 * The purpose of this script is to obtain videos or clips that are either marked as "sub-only" or have been deleted on Twitch. 
 
 # About
-* Developed by: Shishkebaboo (formerly ItIckeYd, the original developer who is back to work on the project after a hiatus)
+* Developed by: Shishkebaboo (formerly ItIckeYd)
 * Initial release: May 3rd, 2022
 * The script leverages logic from the [TwitchRecover](https://github.com/TwitchRecover/TwitchRecover) repository developed by [Daylam Tayari](https://github.com/daylamtayari)
 
@@ -31,7 +31,7 @@ WELCOME TO VOD RECOVERY
 1) Recover Vod
 2) Recover Clips
 3) Unmute an M3U8 file
-4) Check M3U8 Segments
+4) Check Segment Availability
 5) Generate M3U8 file (ONLY includes valid segments)
 6) Download M3U8 (.MP4 extension)
 7) Exit
@@ -59,18 +59,17 @@ Please choose an option:
 
 
 # Optional IDEs
-* [PyCharm Community Edition](https://www.jetbrains.com/pycharm/download/) (recommended)
+* [PyCharm Community Edition](https://www.jetbrains.com/pycharm/download/) (Recommended)
 * [Visual Studio Code](https://code.visualstudio.com/download)
 
 # Additional Notes
 * Provide at least one example when creating an issue
-* If the script returns no results, try vods from other streamers. If the other vods return results, it is likely that the original vods don't exist
-* Any vod requests that exceed [Twitch's vod retention policy](https://help.twitch.tv/s/article/video-on-demand) will be ignored
+* Make sure that the vod requests are within [Twitch's vod retention policy](https://help.twitch.tv/s/article/video-on-demand). Any vod requests that exceed this policy will be ignored
+* The script was developed for the Windows operating system. If you are using a different operating system, such as Linux, unexpected results may occur when running the script
 
 # Support the Project
-* Donations are appreciated but not expected - [PayPal](https://paypal.me/VodRecovery)
+* Donations are much appreciated but are not expected. If you would like to contribute, you can do so via PayPal using the following link: [PayPal](https://paypal.me/VodRecovery)
 
 # Latest Release
 * [Stable Release - 1.0.1.0](https://github.com/Shishkebaboo/VodRecovery/releases/tag/vodrecovery-1.0.1.0)
-* For the most updated code, clone the main branch of the repository.
 
