@@ -29,7 +29,6 @@
 3) In the `Target` field, add `python ` before the path of the script file. For example, if your script is located at `C:\PythonProjects\RecoverVod.py`, your target should be `python C:\PythonProjects\RecoverVod.py`.
 4) Click `OK` to save the changes.
 5) Right-click on the shortcut file again and select `Pin to taskbar` to add the script to your taskbar.
-6) You can now launch your Python script by clicking on its icon in the taskbar.
 
 ## Expected Script Output
 
