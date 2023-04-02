@@ -23,7 +23,15 @@
 * If you make changes to installed packages locally, you can overwrite the requirements.txt file with `pipreqs <path_of_project> --force`
 * Run the script
 
-### Expected Script Output
+### Pin VodRecovery to taskbar
+1) Right-click on your Python script file and select "Create shortcut".
+2) Right-click on the new shortcut file and select "Properties".
+3) In the "Target" field, add "python " before the path of the script file. For example, if your script is located at "C:\PythonProjects\RecoverVod.py", your target should be "python C:\PythonProjects\RecoverVod.py".
+4) Click "OK" to save the changes.
+5) Right-click on the shortcut file again and select "Pin to taskbar" to add the script to your taskbar.
+6) You can now launch your Python script by clicking on its icon in the taskbar.
+
+## Expected Script Output
 
 ```
 WELCOME TO VOD RECOVERY
@@ -39,7 +47,7 @@ WELCOME TO VOD RECOVERY
 Please choose an option:
 ```
 
-### Expected FFmpeg Ouput
+## Expected FFmpeg Ouput
 * Run the `ffmpeg` command in Command Prompt
 
 ![ffmpeg_preview](https://user-images.githubusercontent.com/118132878/216841020-617b9807-3a4c-4f03-856e-854d91306880.png)
