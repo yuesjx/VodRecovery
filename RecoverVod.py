@@ -447,7 +447,8 @@ def validate_playlist_segments(segments):
             if check_response_status_code(response):
                 valid_segments.append(response.url)
         print(f"\rChecking segments.. {i + 1} / {len(all_segments)}", end="")
-    segment_string = f"{len(valid_segments)} of {len(all_segments)} Segments are valid"
+    percentage = (len(valid_segments) / len(all_segments)) * 100
+    segment_string = f"{len(valid_segments)} of {len(all_segments)} segments are valid ({percentage:.2f}% of the VOD available)"
     print(f"\n{segment_string}" + "\n")
     return valid_segments
 
