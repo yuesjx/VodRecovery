@@ -1,4 +1,4 @@
 beautifulsoup4==4.11.2
-grequests==0.6.0
-natsort==8.2.0
 requests==2.27.1
+natsort==8.2.0
+grequests==0.6.0
