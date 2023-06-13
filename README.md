@@ -78,5 +78,5 @@ Please choose an option:
 * Donations are much appreciated but are not expected. If you would like to contribute, you can do so via PayPal using the following link: [PayPal](https://paypal.me/VodRecovery)
 
 # Latest Release
-* [Stable Release - 1.0.1.0](https://github.com/Shishkebaboo/VodRecovery/releases/tag/vodrecovery-1.0.1.0)
+* [Stable Release - 1.0.2.0](https://github.com/Shishkebaboo/VodRecovery/releases/tag/vodrecovery-1.0.2.0)
 
