@@ -12,48 +12,6 @@ import requests
 from bs4 import BeautifulSoup
 from natsort import natsorted
 
-domains = ["https://vod-secure.twitch.tv/",
-           "https://vod-metro.twitch.tv/",
-           "https://vod-pop-secure.twitch.tv/",
-           "https://d2e2de1etea730.cloudfront.net/",
-           "https://dqrpb9wgowsf5.cloudfront.net/",
-           "https://ds0h3roq6wcgc.cloudfront.net/",
-           "https://d2nvs31859zcd8.cloudfront.net/",
-           "https://d2aba1wr3818hz.cloudfront.net/",
-           "https://d3c27h4odz752x.cloudfront.net/",
-           "https://dgeft87wbj63p.cloudfront.net/",
-           "https://d1m7jfoe9zdc1j.cloudfront.net/",
-           "https://d3vd9lfkzbru3h.cloudfront.net/",
-           "https://d2vjef5jvl6bfs.cloudfront.net/",
-           "https://d1ymi26ma8va5x.cloudfront.net/",
-           "https://d1mhjrowxxagfy.cloudfront.net/",
-           "https://ddacn6pr5v0tl.cloudfront.net/",
-           "https://d3aqoihi2n8ty8.cloudfront.net/"]
-
-user_agents = ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36",
-               "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36",
-               "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36",
-               "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36",
-               "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36",
-               "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:103.0) Gecko/20100101 Firefox/103.0",
-               "Mozilla/5.0 (Macintosh; Intel Mac OS X 12.5; rv:103.0) Gecko/20100101 Firefox/103.0",
-               "Mozilla/5.0 (X11; Linux i686; rv:103.0) Gecko/20100101 Firefox/103.0",
-               "Mozilla/5.0 (Linux x86_64; rv:103.0) Gecko/20100101 Firefox/103.0",
-               "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:103.0) Gecko/20100101 Firefox/103.0",
-               "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:103.0) Gecko/20100101 Firefox/103.0",
-               "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:103.0) Gecko/20100101 Firefox/103.0",
-               "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:102.0) Gecko/20100101 Firefox/102.0",
-               "Mozilla/5.0 (Macintosh; Intel Mac OS X 12.5; rv:102.0) Gecko/20100101 Firefox/102.0",
-               "Mozilla/5.0 (X11; Linux i686; rv:102.0) Gecko/20100101 Firefox/102.0",
-               "Mozilla/5.0 (Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
-               "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:102.0) Gecko/20100101 Firefox/102.0",
-               "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
-               "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
-               "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Safari/605.1.15",
-               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36 Edg/103.0.1264.77",
-               "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36 Edg/103.0.1264.77",
-               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36']
-
 with open("config/vodrecovery_config.json") as config_file:
     vodrecovery_config = json.load(config_file)
 
@@ -138,9 +96,14 @@ def check_response_status_code(response):
 
 
 def return_header():
+    with open("config/user_agents.txt") as file:
+        user_agents = file.readlines()
+        user_agent = random.choice(user_agents).strip()
+
     header = {
-        'user-agent': f'{random.choice(user_agents)}'
+        'user-agent': user_agent
     }
+
     return header
 
 
@@ -180,10 +143,10 @@ def get_reps(duration):
 
 def get_clip_format(vod_id, reps):
     default_clip_list = ["https://clips-media-assets2.twitch.tv/" + vod_id + "-offset-" + str(i) + ".mp4" for i in
-                         range(reps) if i % 2 == 0]
+                         range(0, reps, 2)]
 
     alternate_clip_list = ["https://clips-media-assets2.twitch.tv/vod-" + vod_id + "-offset-" + str(i) + ".mp4" for i in
-                           range(reps) if i % 2 == 0]
+                           range(0, reps, 2)]
 
     legacy_clip_list = [
         "https://clips-media-assets2.twitch.tv/" + vod_id + "-index-" + "%010g" % (int('000000000') + i) + ".mp4" for i
@@ -257,6 +220,8 @@ def get_vod_urls(streamer, vod_id, timestamp):
                                                                                                           1)).total_seconds()
         base_url = streamer + "_" + vod_id + "_" + str(int(epoch_timestamp))
         hashed_base_url = str(hashlib.sha1(base_url.encode('utf-8')).hexdigest())[:20]
+        with open("config/domains.txt") as file:
+            domains = [line.strip() for line in file]
         for domain in domains:
             vod_url_list.append("{}{}_{}/chunked/index-dvr.m3u8".format(domain, hashed_base_url, base_url))
     request_session = requests.Session()
@@ -299,7 +264,10 @@ def parse_duration_sullygnome(tracker_url):
     if check_response_status_code(response):
         bs = BeautifulSoup(response.content, 'html.parser')
         sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.strip().replace("hours", "").replace("hour", "").replace("minutes", "").split(",")
-        return get_duration(int(sullygnome_duration[0]), int(sullygnome_duration[1]))
+        hours = int(sullygnome_duration[0])
+        minutes = int(sullygnome_duration[1]) if len(sullygnome_duration) > 1 else 0
+
+        return get_duration(hours, minutes)
 
 
 def parse_datetime_streamscharts(tracker_url):
@@ -448,20 +416,17 @@ def validate_playlist_segments(segments):
                 valid_segments.append(response.url)
         print(f"\rChecking segments.. {i + 1} / {len(all_segments)}", end="")
     percentage = (len(valid_segments) / len(all_segments)) * 100
-    segment_string = f"{len(valid_segments)} of {len(all_segments)} segments are valid ({percentage:.2f}% of the VOD available)"
+    segment_string = f"{len(valid_segments)} of {len(all_segments)} segments are valid. ({percentage:.2f}% of the VOD is available)"
     print(f"\n{segment_string}" + "\n")
     return valid_segments
 
 
 def vod_recover(streamer_name, vod_id, timestamp):
     vod_config = vodrecovery_config["VIDEO RECOVERY"]
+    print("Searching for VODs...")
     vod_age = get_vod_age(timestamp)
-    if vod_age == 0:
-        print("Broadcast is from today!" + "\n")
-    elif vod_age > 60:
+    if vod_age > 60:
         print("Vod is older then 60 days. Chances of recovery are very slim." + "\n")
-    else:
-        print(f"Vod is {vod_age} day(s) old." + "\n")
     vod_url_list = get_vod_urls(streamer_name, vod_id, timestamp)
     if len(vod_url_list):
         vod_url = random.choice(vod_url_list)
