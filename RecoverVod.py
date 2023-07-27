@@ -432,8 +432,7 @@ def vod_recover(streamer_name, vod_id, timestamp):
         vod_url = random.choice(vod_url_list)
         playlist_segments = get_all_playlist_segments(vod_url)
         if is_vod_muted(vod_url):
-            print(vod_url)
-            print("Vod contains muted segments")
+            print(vod_url, "\nVod contains muted segments")
             if vod_config["UNMUTE_VOD"]:
                 unmute_vod(vod_url)
                 if vod_config["CHECK_SEGMENTS"]:
@@ -459,7 +458,7 @@ def vod_recover(streamer_name, vod_id, timestamp):
                 else:
                     return
         else:
-            print(f"{vod_url}\nVod does NOT contain muted segments")
+            print(vod_url, "\nVod does NOT contain muted segments")
             if vod_config["CHECK_SEGMENTS"]:
                 validate_playlist_segments(playlist_segments)
             else:
