@@ -1,0 +1,49 @@
+{
+  "MAIN_MENU": {
+    "1) VOD Recovery": "Recovers M3U8 links based on stream information.",
+    "2) Clip Recovery": "Recovers all clips from past broadcasts.",
+    "3) Unmute M3U8 File": "Unmutes segments in an M3U8 playlist file.",
+    "4) Verify Segment Availability": "Checks if the segments in the M3U8 playlist are available.",
+    "5) Create M3U8 File (Valid Segments Only)": "Creates an M3U8 playlist file containing only valid segments.",
+    "6) Download M3U8 File (.MP4 Extension)": "Downloads the recovered M3U8 as an MP4 file.",
+    "7) Help": "Displays an explaination of each menu option",
+    "8) Exit": "Exits the application."
+  },
+  "VOD_MODE_MENU": {
+    "1) Single VOD Recovery": "Recovers a single video.",
+    "2) Bulk VOD Recovery from SullyGnome CSV Export": "Recovers all available videos based on a CSV file of streams exported from SullyGnome.",
+    "3) Exit": "Exits the application."
+  },
+  "VOD_RECOVERY_MENU": {
+    "1) Manual Video Recovery": "Recovers videos using manual input of stream information.",
+    "2) Website Video Recovery": "Recovers videos by scraping websites to retrieve stream information.",
+    "3) Exit": "Exits the application."
+  },
+  "CLIP_TYPE_MENU": {
+    "1) Recover All Clips from a single video": "Recovers all clips from a single video.",
+    "2) Find Random Clips from a single video": "Recovers a random set of clips from a single video.",
+    "3) Bulk Recover Clips from SullyGnome CSV Export": "Recovers all clips based on a CSV file of streams exported from SullyGnome.",
+    "4) Exit": "Exits the application."
+  },
+  "CLIP_RECOVERY_MENU": {
+    "1) Manual Clip Recovery": "Recovers clips using manual input of stream information.",
+    "2) Website-Based Clip Recovery": "Recovers clips by scraping websites to retrieve stream information.",
+    "3) Exit": "Exits the application."
+  },
+  "BULK_CLIP_RECOVERY_MENU": {
+    "1) Single CSV File": "Recovers clips based on a single CSV file.",
+    "2) Multiple CSV Files": "Recovers clips based on multiple CSV files.",
+    "3) Exit": "Exits the application."
+  },
+  "CLIP_FORMAT_MENU": {
+    "1) Default Format ([VodID]-offset-[interval])": "Uses the default naming format for clips. (August 2016 - Present)",
+    "2) Alternate Format (vod-[VodID]-offset-[interval])": "Uses an alternate naming format for clips. (Any period of time HOWEVER it uses the original VodID from Twitch)",
+    "3) Legacy Format ([VodID]-index-[interval])": "Uses a legacy naming format for clips. (May 28th, 2016 - August 2016)",
+    "4) Exit": "Returns to main menu."
+  },
+  "DOWNLOAD_TYPE_MENU": {
+    "1) M3U8 Link": "Downloads the M3U8 link as an MP4.",
+    "2) M3U8 File": "Downloads the M3U8 file as an MP4.",
+    "3) Exit": "Exits the application."
+  }
+}

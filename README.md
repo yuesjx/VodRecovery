@@ -1,82 +1,97 @@
-# VodRecovery
-* The purpose of this script is to obtain videos or clips that are either marked as "sub-only" or have been deleted on Twitch. 
+# Welcome to VodRecovery
 
-# About
-* Developed by: Shishkebaboo (formerly ItIckeYd)
-* Initial release: May 3rd, 2022
-* The script leverages logic from the [TwitchRecover](https://github.com/TwitchRecover/TwitchRecover) repository developed by [Daylam Tayari](https://github.com/daylamtayari)
+VodRecovery is a Python script designed to access Twitch videos and clips that are either restricted to subscribers or have been deleted.
 
-# Features
-* Supports both manual and website vod recovery
-* Can recover vods individually or in bulk using a CSV downloaded from [Sullygnome](https://sullygnome.com/)
-* Can recover clips manually or in bulk using a CSV from [Sullygnome](https://sullygnome.com/)
-* Supports downloading M3U8 links/files, with the ability to specify start/end timestamps for trimmed vods using [FFmpeg](https://ffmpeg.org/download.html)
-* Compatible with [TwitchTracker](https://twitchtracker.com/), [Sullygnome](https://sullygnome.com/), and [Streamscharts](https://streamscharts.com/)
-* Uses UTC timezone as default for recovering vods
-* Notifies if vod is older than 60 days (due to Twitch's deletion process)
+## Introduction
 
-# Installation
-* Download/install - [Python](https://www.python.org/downloads/)
-* Clone the repository
-* Navigate to the cloned directory
-* Install required packages with `pip install -r requirements.txt` (run in terminal)
-* If you make changes to installed packages locally, you can overwrite the requirements.txt file with `pipreqs <path_of_project> --force`
-* Run the script
+- **Author**: Shishkebaboo
+- **Initial Release**: May 3rd, 2022
+- **Influenced By**: [TwitchRecover](https://github.com/TwitchRecover/TwitchRecover) by Daylam Tayari
 
-### Pin VodRecovery to taskbar
-1) Right-click on your Python script file and select `Create shortcut`.
-2) Right-click on the new shortcut file and select `Properties`.
-3) In the `Target` field, add `python ` before the path of the script file. For example, if your script is located at `C:\PythonProjects\RecoverVod.py`, your target should be `python C:\PythonProjects\RecoverVod.py`.
-4) Click `OK` to save the changes.
-5) Right-click on the shortcut file again and select `Pin to taskbar` to add the script to your taskbar.
+## Core Features
 
-## Expected Script Output
+- Video Recovery: Choose between manual or web-based VOD recovery options.
+- Clip Recovery: Recover clips manually or via mentioned websites.
+- Bulk Clip Recovery: Easily recover multiple clips using CSV files from [Sullygnome](https://sullygnome.com/).
+- Random Clip Recovery: Retrieve a selection of random clips (3 clips per iteration).
+- Multiple Formats: Recovered M3U8 links are available in various formats, including - chunked (Source Quality), 1080p60, 1080p30, 720p60, 720p30, 480p60, 480p30
+- Platform Compatibility: VodRecovery is compatible with popular platforms such as [TwitchTracker](https://twitchtracker.com/), [Sullygnome](https://sullygnome.com/), and [Streamscharts](https://streamscharts.com/).
+- Default Timezone: The script uses UTC as the default timezone for recovering VODs.
+- Video Expiry Duration: Receive a notification if a VOD is older than 60 days, helping you stay informed about content availability.
+
+## Installation and Setup
+
+1. Download and install [Python](https://www.python.org/downloads/).
+2. Clone this repository.
+3. Navigate to the project directory.
+4. Install the required packages: `pip install -r requirements.txt`.
+
+## Usage
+
+Run the script and follow the interactive menu:
 
 ```
-WELCOME TO VOD RECOVERY
-
-1) Recover Vod
-2) Recover Clips
-3) Unmute an M3U8 file
-4) Check Segment Availability
-5) Generate M3U8 file (ONLY includes valid segments)
-6) Download M3U8 (.MP4 extension)
-7) Exit
-
-Please choose an option:
+1) VOD Recovery
+2) Clip Recovery
+3) Unmute M3U8 File
+4) Verify Segment Availability
+5) Create M3U8 File (Valid Segments Only)
+6) Download M3U8 File (.MP4 Extension)
+7) Help
+8) Exit
 ```
 
-## Expected FFmpeg Ouput
-* Run the `ffmpeg` command in Command Prompt
+## Configuration Options
 
-![ffmpeg_preview](https://user-images.githubusercontent.com/118132878/216841020-617b9807-3a4c-4f03-856e-854d91306880.png)
+The script uses multiple configuration files to minimize user input and tailor behavior. Descriptions of the settings in each file are provided below.
 
-# Configuration File
-* The configuration file can be used to limit the amount of user input when using the script. The following options are among the most popular to change for users:
- 1. ```UNMUTE_VOD```
- 2. ```CHECK_SEGMENTS```
- 3. ```DOWNLOAD_CLIPS```
- 4. ```REMOVE_LOG_FILE```
- 5. ```DEFAULT_DIRECTORY```
- 6. ```DOWNLOAD_DIRECTORY```
- 7. ```MAX_REQUEST_SIZE```
+### Preferences.json
 
-### Default Configuration
-![config_file_vodrecover](https://user-images.githubusercontent.com/118132878/220527660-54a2f47c-20cf-4c2d-b4d1-7c9866835ad4.png)
+- `DEFAULT_DIRECTORY`: The default directory where files are stored.
+- `DOWNLOAD_DIRECTORY`: The directory where downloads are stored.
 
+### Settings.json
 
-# Optional IDEs
-* [PyCharm Community Edition](https://www.jetbrains.com/pycharm/download/) (Recommended)
-* [Visual Studio Code](https://code.visualstudio.com/download)
+- `DOWNLOAD_M3U8_VIDEO_URL`: Command for downloading M3U8 video URLs.
+- `DOWNLOAD_M3U8_VIDEO_URL_SLICE`: Command for downloading a sliced portion of M3U8 video URLs.
+- `DOWNLOAD_M3U8_VIDEO_FILE`: Command for downloading M3U8 video files.
+- `DOWNLOAD_M3U8_VIDEO_FILE_SLICE`: Command for downloading a sliced portion of M3U8 video files.
+- `UNMUTE_VIDEO`: A boolean value indicating if the video should be unmuted.
+- `CHECK_SEGMENTS`: A boolean value enabling or disabling the segment checking feature.
+- `DOWNLOAD_CLIPS`: A boolean value specifying whether clips should be automatically downloaded.
+- `REMOVE_LOG_FILE`: A boolean value controlling the automatic removal of log files post-operation.
 
-# Additional Notes
-* Provide at least one example when creating an issue
-* Make sure that the vod requests are within [Twitch's vod retention policy](https://help.twitch.tv/s/article/video-on-demand). Any vod requests that exceed this policy will be ignored
-* The script was developed for the Windows operating system. If you are using a different operating system, such as Linux, unexpected results may occur when running the script
+## Menu Guide
 
-# Support the Project
-* Donations are much appreciated but are not expected. If you would like to contribute, you can do so via PayPal using the following link: [PayPal](https://paypal.me/VodRecovery)
+The `help.json` file provides descriptions of all main and sub-menu options. You can refer to this file to understand each option's functionality.
 
-# Latest Release
-* [Stable Release - 1.0.2.0](https://github.com/Shishkebaboo/VodRecovery/releases/tag/vodrecovery-1.0.2.0)
+## Domains.txt
+The `domains.txt` file contains a list of domains that the script uses to retrieve videos. Each line in this file represents a domain.
 
+## User_agents.txt
+The `user_agents.txt` file contains a list of user agents that the script uses to scrape website data. Each line in this file represents a user agent string.
+
+## FFmpeg Installation
+To use FFmpeg with the script, you'll need to install FFmpeg on your system. You can download FFmpeg from the official website [here](https://ffmpeg.org/download.html) and follow the installation instructions for your operating system.
+
+## Pull Requests
+- **Please note this repository does not accept any pull requests**
+
+## Development Environment
+
+- [PyCharm Community Edition](https://www.jetbrains.com/pycharm/download/)
+- [Visual Studio Code](https://code.visualstudio.com/download)
+- [Sublime Text](https://www.sublimetext.com/download)
+
+## Notes
+
+- Provide examples when submitting issues.
+- Ensure your Video requests comply with [Twitch's Video Retention Policy](https://help.twitch.tv/s/article/video-on-demand).
+
+## Support
+
+Donations are welcome but not required: [PayPal](https://paypal.me/VodRecovery)
+
+## Latest Release
+
+- [Stable Release - 1.0.3.0](https://github.com/Shishkebaboo/VodRecovery/releases/tag/vodrecovery-1.0.3.0)
