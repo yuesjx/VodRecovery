@@ -262,7 +262,7 @@ def get_random_clip_information():
 def manual_clip_recover():
     while True:
         streamer_name = input("Enter the Streamer Name: ")
-        if streamer_name.strip():
+        if streamer_name.lower().strip():
             break
         else:
             print("Invalid streamer name, Please try again!")
@@ -308,23 +308,23 @@ def website_clip_recover():
 def manual_vod_recover():
     while True:
         streamer_name = input("Enter the Streamer Name: ")
-        if streamer_name.strip():
+        if streamer_name.lower().strip():
             break
         else:
             print("Invalid streamer name, Please try again!")
-        while True:
-            video_id = input("Enter the video ID: ")
-            if video_id.strip():
-                break
-            else:
-                print("Invalid video id, Please try again!")
-        while True:
-            timestamp = input("Enter VOD start time (YYYY-MM-DD HH:MM:SS): ")
-            if timestamp:
-                break
-            else:
-                print("Invalid timestamp format, Please try again!")
-        vod_recover(streamer_name, video_id, timestamp)
+    while True:
+        video_id = input("Enter the video ID: ")
+        if video_id.strip():
+            break
+        else:
+            print("Invalid video id, Please try again!")
+    while True:
+        timestamp = input("Enter VOD start time (YYYY-MM-DD HH:MM:SS): ")
+        if timestamp:
+            break
+        else:
+            print("Invalid timestamp format, Please try again!")
+    vod_recover(streamer_name, video_id, timestamp)
 
 
 def website_vod_recover():
@@ -648,7 +648,9 @@ def vod_recover(streamer_name, video_id, timestamp):
         alternate_websites = '\n'.join(generate_website_links(streamer_name, video_id))
         print(f"No videos found using the current domain list. Try using an alternate website:\n{alternate_websites}")
         return
-    return vod_url
+    else:
+        process_m3u8_configuration(vod_url)
+        return
 
 
 def bulk_vod_recovery():
