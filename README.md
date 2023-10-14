@@ -94,4 +94,4 @@ Donations are welcome but not required: [PayPal](https://paypal.me/VodRecovery)
 
 ## Latest Release
 
-- [Stable Release - 1.0.3.0](https://github.com/Shishkebaboo/VodRecovery/releases/tag/vodrecovery-1.0.3.0)
+- [Stable Release - 1.0.4.0](https://github.com/Shishkebaboo/VodRecovery/releases/tag/vodrecovery-1.0.4.0)
