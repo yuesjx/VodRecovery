@@ -324,7 +324,8 @@ def manual_vod_recover():
             break
         else:
             print("Invalid timestamp format, Please try again!")
-    vod_recover(streamer_name, video_id, timestamp)
+    m3u8_link = vod_recover(streamer_name, video_id, timestamp)
+    process_m3u8_configuration(m3u8_link)
 
 
 def website_vod_recover():
@@ -649,8 +650,7 @@ def vod_recover(streamer_name, video_id, timestamp):
         print(f"No videos found using the current domain list. Try using an alternate website:\n{alternate_websites}")
         return
     else:
-        process_m3u8_configuration(vod_url)
-        return
+        return vod_url
 
 
 def bulk_vod_recovery():
