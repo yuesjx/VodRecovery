@@ -2,6 +2,11 @@
 
 VodRecovery is a Python script designed to access Twitch videos and clips that are either restricted to subscribers or have been deleted.
 
+## Disclaimer
+Effective November 19th, 2023, the VodRecovery repository will be archived and no longer actively maintained. Due to this, I have disabled issues and discussions.
+This decision comes in light of the numerous issues and questions that are not directly related to the repository's code, but rather to changes in third-party websites (Twitch, TwitchTracker, Streamscharts, Sullygnome) it depends upon. These external factors are outside my control and make it impractical to provide consistent support or responses.
+The repository will remain accessible in a read-only format for archival and reference purposes. I appreciate everyone who has supported the repository and shown interest in improving it! Thanks for understanding.
+
 ## Introduction
 
 - **Author**: Shishkebaboo
@@ -87,10 +92,6 @@ To use FFmpeg with the script, you'll need to install FFmpeg on your system. You
 
 - Provide examples when submitting issues.
 - Ensure your Video requests comply with [Twitch's Video Retention Policy](https://help.twitch.tv/s/article/video-on-demand).
-
-## Support
-
-Donations are welcome but not required: [PayPal](https://paypal.me/VodRecovery)
 
 ## Latest Release
 
