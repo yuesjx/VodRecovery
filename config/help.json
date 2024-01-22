@@ -15,8 +15,8 @@
     "3) Exit": "Exits the application."
   },
   "VOD_RECOVERY_MENU": {
-    "1) Manual Video Recovery": "Recovers videos using manual input of stream information.",
-    "2) Website Video Recovery": "Recovers videos by scraping websites to retrieve stream information.",
+    "1) Website Video Recovery": "Recovers videos by scraping websites to retrieve stream information.",
+    "2) Manual Video Recovery": "Recovers videos using manual input of stream information.",
     "3) Exit": "Exits the application."
   },
   "CLIP_TYPE_MENU": {
