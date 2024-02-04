@@ -3,5 +3,6 @@
     "CHECK_SEGMENTS": true,
     "DOWNLOAD_CLIPS": false,
     "REMOVE_LOG_FILE": true,
-    "DEFAULT_DIRECTORY": "~/Downloads"
+    "DEFAULT_DIRECTORY": "~/Downloads",
+    "DEFAULT_VIDEO_FORMAT": ".mp4"
 }
