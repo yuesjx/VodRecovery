@@ -1,4 +1,3 @@
-import datetime
 import hashlib
 import json
 import csv
@@ -8,20 +7,23 @@ import re
 import subprocess
 import time
 import shutil
-import grequests
-import requests
 import tkinter as tk
-from collections.abc import Iterable
+import sys
 from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
+from collections.abc import Iterable
 from tkinter import filedialog
-from seleniumbase import SB
+from urllib.parse import urlparse
+import concurrent.futures
+import grequests
 from selenium.webdriver.common.by import By
-
+from bs4 import BeautifulSoup
+from seleniumbase import SB
+import requests
 
 
 def print_main_menu():
-    menu_options = ["1) VOD Recovery", "2) Clip Recovery", "3) Unmute M3U8 File", "4) Check M3U8 Availability", "5) Download M3U8 File (.mp4 Default)", "6) Set Download Directory", "7) Set Default Video Format", "8) Help", "9) Exit"]
+    menu_options = ["1) VOD Recovery", "2) Clip Recovery", "3) Unmute M3U8 File", "4) Check M3U8 Availability", "5) Download M3U8 File (.mp4 Default)",
+                     "6) Set Download Directory", "7) Set Default Video Format", "8) Help", "9) Exit"]
     print("\n".join(menu_options))
     try:
         return int(input("\nChoose an option: "))
@@ -30,13 +32,12 @@ def print_main_menu():
 
 
 def print_video_mode_menu():
-    vod_type_options = ["1) Single Video Recovery", "2) Bulk video Recovery from SullyGnome CSV Export", "3) Return"]
+    vod_type_options = ["1) Website Video Recovery", "2) Manual Recovery", "3) Bulk video Recovery from SullyGnome CSV Export", "4) Return"]
     print("\n".join(vod_type_options))
     try:
         return int(input("\nSelect VOD Recovery Type: "))
     except ValueError:
         return
-
 
 def print_video_recovery_menu():
     vod_recovery_options = ["1) Website Video Recovery", "2) Manual Recovery", "3) Return"]
@@ -52,9 +53,8 @@ def print_get_m3u8_link_menu():
     # if possible strip the m3u8 link
     if m3u8_url.endswith(".m3u8"):
         return m3u8_url
-    else:
-        print("Invalid M3U8 link, please try again!\n")
-        return print_get_m3u8_link_menu()
+    print("Invalid M3U8 link, please try again!\n")
+    return print_get_m3u8_link_menu()
     
 def print_clip_type_menu():
     clip_type_options = ["1) Recover All Clips from a Single VOD", "2) Find Random Clips from a Single VOD", "3) Bulk Recover Clips from SullyGnome CSV Export", "4) Return"]
@@ -97,15 +97,14 @@ def print_handle_m3u8_availability_menu():
         return print_handle_m3u8_availability_menu()
 
 
-
 def read_config_file(config_file):
-    with open(f"config/{config_file}.json") as config_file:
+    with open(f"config/{config_file}.json", encoding="utf-8") as config_file:
         config = json.load(config_file)
     return config
 
 
 def read_config_by_key(config_file, key):
-    with open(f"config/{config_file}.json", 'r') as input_config_file:
+    with open(f"config/{config_file}.json", 'r', encoding="utf-8") as input_config_file:
         config = json.load(input_config_file)
     return config.get(key, None)
 
@@ -120,31 +119,31 @@ def print_help():
                 print(f"  {option}: {description}")
             print()
         print(" --------------- End of Help Section ---------------\n")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    except Exception as error:
+        print(f"An error occurred: {error}")
 
 
 def read_text_file(text_file_path):
     lines = []
-    with open(text_file_path, "r") as text_file:
+    with open(text_file_path, "r", encoding="utf-8") as text_file:
         for line in text_file:
             lines.append(line.rstrip())
     return lines
 
 
 def write_text_file(input_text, destination_path):
-    with open(destination_path, "a+") as text_file:
+    with open(destination_path, "a+", encoding="utf-8") as text_file:
         text_file.write(input_text + '\n')
 
 
 def write_m3u8_to_file(m3u8_link, destination_path):
-    with open(destination_path, "w") as m3u8_file:
-        m3u8_file.write(requests.get(m3u8_link).text)
+    with open(destination_path, "w", encoding="utf-8") as m3u8_file:
+        m3u8_file.write(requests.get(m3u8_link, timeout=30).text)
     return m3u8_file
 
 
 def read_csv_file(csv_file_path):
-    with open(csv_file_path, "r") as csv_file:
+    with open(csv_file_path, "r", encoding="utf-8") as csv_file:
         return list(csv.reader(csv_file))
 
 
@@ -182,7 +181,7 @@ def calculate_days_since_broadcast(start_timestamp):
 
 
 def is_video_muted(m3u8_link):
-    response = requests.get(m3u8_link).text
+    response = requests.get(m3u8_link, timeout=30).text
     return bool("unmuted" in response)
 
 
@@ -261,7 +260,7 @@ def set_default_video_format():
         selected_format = video_format_options[int(user_option) - 1]
         config_file_path = "config/settings.json"
         try:
-            with open(config_file_path, 'r') as config_file:
+            with open(config_file_path, 'r', encoding="utf-8") as config_file:
                 config_data = json.load(config_file)
 
             if not config_data:
@@ -270,13 +269,13 @@ def set_default_video_format():
 
             config_data["DEFAULT_VIDEO_FORMAT"] = selected_format
 
-            with open(config_file_path, 'w') as config_file:
+            with open(config_file_path, 'w', encoding="utf-8") as config_file:
                 json.dump(config_data, config_file, indent=4)
 
             print(f"\nDefault video format set to: {selected_format}\n")
 
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"Error: {e}")
+        except (FileNotFoundError, json.JSONDecodeError) as error:
+            print(f"Error: {error}")
     else:
         print("\n --> Invalid option. Please try again!" + "\n")
         return
@@ -301,20 +300,20 @@ def set_default_directory():
             file_path += "/"
 
         config_file_path = "config/settings.json"
-        
+      
         try:
-            with open(config_file_path, 'r') as config_file:
+            with open(config_file_path, 'r', encoding="utf-8") as config_file:
                 config_data = json.load(config_file)
             
             config_data["DEFAULT_DIRECTORY"] = file_path
             
-            with open(config_file_path, 'w') as config_file:
+            with open(config_file_path, 'w', encoding="utf-8") as config_file:
                 json.dump(config_data, config_file, indent=4)
             
             print(f"\nDefault directory set to: {file_path}\n")
         
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"Error: {e}")
+        except (FileNotFoundError, json.JSONDecodeError) as error:
+            print(f"Error: {error}")
     else:
         print("\nNo folder selected, Returning to main menu...\n")
     window.destroy() 
@@ -344,6 +343,31 @@ def generate_website_links(streamer_name, video_id, trackerUrl=None):
         website_list = [link for link in website_list if trackerUrl not in link]
 
     return website_list
+
+def convert_url(url, target):
+    # converts url to the specified target
+    patterns = {
+        "sullygnome": "https://sullygnome.com/channel/{}/stream/{}",
+        "twitchtracker": "https://twitchtracker.com/{}/streams/{}",
+        "streamscharts": "https://streamscharts.com/channels/{}/streams/{}"
+    }
+    parsed_url = urlparse(url)
+    streamer, video_id = None, None
+
+    if "sullygnome" in url:
+        streamer = parsed_url.path.split("/")[2]
+        video_id = parsed_url.path.split("/")[4]
+
+    elif "twitchtracker" in url:
+        streamer = parsed_url.path.split("/")[1]
+        video_id = parsed_url.path.split("/")[3]
+
+    elif "streamscharts" in url:
+        streamer = parsed_url.path.split("/")[2]
+        video_id = parsed_url.path.split("/")[4]
+
+    if streamer and video_id:
+        return patterns[target].format(streamer, video_id)
 
 
 def extract_offset(clip_url):
@@ -432,6 +456,7 @@ def website_clip_recover():
 
         print("Retrieving stream duration from Twitchtracker")
         duration_twitchtracker = parse_duration_twitchtracker(tracker_url)
+        print(duration_twitchtracker)
 
         clip_recover(streamer, video_id, int(duration_twitchtracker))
     elif "sullygnome" in tracker_url:
@@ -466,8 +491,18 @@ def manual_vod_recover():
         else:
             print("Invalid timestamp format, Please try again!")
     m3u8_link = vod_recover(streamer_name, video_id, timestamp)
-    process_m3u8_configuration(m3u8_link)
+    if m3u8_link is None:
+        sys.exit()
 
+    process_m3u8_configuration(m3u8_link)
+    start_download = print_confirm_download_menu()
+    if start_download == 1:
+        handle_vod_url_normal(m3u8_link)
+    elif start_download == 2:
+        handle_vod_url_trim(m3u8_link)
+    elif start_download == 3:
+        sys.exit()
+        
 
 def website_vod_recover():
     tracker_url = input("Enter Twitchtracker/Streamscharts/Sullygnome url: ").strip()
@@ -478,7 +513,7 @@ def website_vod_recover():
     if "streamscharts" in tracker_url:
 
         streamer, video_id = parse_streamscharts_url(tracker_url)
-        print(f"Checking {streamer} VOD Id: {video_id}\n")
+        print(f"Checking {streamer} VOD Id: {video_id}")
         m3u8_link = vod_recover(streamer, video_id, parse_datetime_streamscharts(tracker_url), tracker_url)
         if m3u8_link is not None:
             process_m3u8_configuration(m3u8_link)
@@ -515,9 +550,9 @@ def website_vod_recover():
         streamer, video_id = parse_sullygnome_url(tracker_url)
         print(f"Checking {streamer} VOD Id: {video_id}")
 
-        newTrackerUrl = re.sub(r'/\d+/', '/', tracker_url)
+        new_tracker_url = re.sub(r'/\d+/', '/', tracker_url)
 
-        m3u8_link = vod_recover(streamer, video_id, parse_datetime_sullygnome(tracker_url), newTrackerUrl)
+        m3u8_link = vod_recover(streamer, video_id, parse_datetime_sullygnome(tracker_url), new_tracker_url)
         if m3u8_link is not None:
             process_m3u8_configuration(m3u8_link)
             m3u8_duration = return_m3u8_duration(m3u8_link)
@@ -545,43 +580,95 @@ def get_all_clip_urls(clip_format_dict, clip_format_list):
 
 
 
+# def get_vod_urls(streamer_name, video_id, start_timestamp):
+#     m3u8_link_list = []
+#     domains = read_text_file('config/domains.txt')
+
+#     random.shuffle(domains)
+#     print()
+
+#     for seconds in range(60):
+#         base_url = f"{streamer_name}_{video_id}_{int(calculate_epoch_timestamp(start_timestamp, seconds))}"
+#         hashed_base_url = str(hashlib.sha1(base_url.encode('utf-8')).hexdigest())[:20]
+
+        
+#         for domain in domains:
+#             m3u8_link_list.append(f"{domain}{hashed_base_url}_{base_url}/chunked/index-dvr.m3u8")
+
+#     request_session = requests.Session()
+#     rs = [grequests.head(u, session=request_session) for u in m3u8_link_list]
+
+#     for i, response in enumerate(grequests.imap(rs, size=100)):
+#         print(f"\rSearching {i + 1} out of {len(m3u8_link_list)} URLs", end='', flush=True)
+
+#         if response.status_code == 200:
+#             successful_url = response.url
+#             print("\n" + f"Found URL: {successful_url}")
+#             return successful_url
+
+#     print("\nNo successful URL found.")
+#     return None
+
+
 def get_vod_urls(streamer_name, video_id, start_timestamp):
     m3u8_link_list = []
     domains = read_text_file('config/domains.txt')
 
     random.shuffle(domains)
-
-    print()
+    print("\nSearching for M3U8 URL...")
+    
     for seconds in range(60):
         base_url = f"{streamer_name}_{video_id}_{int(calculate_epoch_timestamp(start_timestamp, seconds))}"
         hashed_base_url = str(hashlib.sha1(base_url.encode('utf-8')).hexdigest())[:20]
 
-        
         for domain in domains:
-            m3u8_link_list.append(f"{domain}{hashed_base_url}_{base_url}/chunked/index-dvr.m3u8")
+            if domain.strip(): 
+                m3u8_link_list.append(f"{domain.strip()}{hashed_base_url}_{base_url}/chunked/index-dvr.m3u8")
 
-    request_session = requests.Session()
-    rs = [grequests.head(u, session=request_session) for u in m3u8_link_list]
+    successful_url = None
+    first_url_printed = False
+    progress_message_printed = False
 
-    for i, response in enumerate(grequests.imap(rs, size=50)):
-        print(f"\rSearching {i + 1} out of {len(m3u8_link_list)} URLs", end='', flush=True)
-
-        if response.status_code == 200:
-            successful_url = response.url
-            print("\n" + f"Found URL: {successful_url}")
-            return successful_url
-
-
-    print("\nNo successful URL found.")
-    return None
-
+    def fetch_status(url):
+        nonlocal successful_url, first_url_printed
+        if successful_url is not None:  # Skip if a successful URL has been found
+            return None
+        try:
+            response = requests.head(url, timeout=10)
+            if response.status_code == 200:
+                successful_url = response.url
+                if not first_url_printed:
+                    if progress_message_printed:
+                        print()
+                    print("\nFound URL:", successful_url)  # Print new line before the first URL
+                    first_url_printed = True
+                else:
+                    print("Found URL:", successful_url)  # Print subsequent URLs normally
+            return response
+        except Exception as exc:
+            print(f'{url} generated an exception: {exc}')
+            return None
+    
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(fetch_status, url) for url in m3u8_link_list]
+        for i in enumerate(concurrent.futures.as_completed(futures)):
+            if successful_url is not None:  # Stop if a successful URL has been found
+                break
+            index, _ = i
+            if not progress_message_printed:
+                progress_message_printed = True
+            print(f"\rSearching {index + 1} out of {len(m3u8_link_list)} URLs", end='', flush=True)
+            
+    if successful_url is None:
+        print("\nNo successful URL found!")
+        return None
+    return successful_url
 
 
 def return_supported_qualities(m3u8_link):
     if m3u8_link is None:
         return
         
-
     print("\nChecking for available qualities...")
 
     resolutions = ["chunked", "1080p60", "1080p30", "720p60", "720p30", "480p60", "480p30"]
@@ -592,9 +679,9 @@ def return_supported_qualities(m3u8_link):
     if not valid_resolutions:
         return None
 
-    print("Choose a quality:")
+    print("Quality Options:")
     for idx, resolution in enumerate(valid_resolutions, 1):
-        print(f"{idx}. {resolution.replace("chunked", "Chunked (Best Quality)")}")
+        print(f"{idx}. {resolution.replace('chunked', 'Chunked (Best Quality)')}")
 
     user_option = get_user_resolution_choice(m3u8_link, valid_resolutions)
     return user_option
@@ -602,7 +689,7 @@ def return_supported_qualities(m3u8_link):
 
 def get_user_resolution_choice(m3u8_link, valid_resolutions):
     try:
-        choice = int(input("Please choose a quality: "))
+        choice = int(input("Choose a quality: "))
         if 1 <= choice <= len(valid_resolutions):
             quality = valid_resolutions[choice - 1]
             user_option = m3u8_link.replace("chunked", quality)
@@ -635,10 +722,9 @@ def parse_website_duration(duration_string):
     return calculate_broadcast_duration_in_minutes(hours, minutes)
 
 
-
 def handle_cloudflare(sb):
 
-    # delete folder download_files generated by selenium browser
+    # delete folder generated by selenium browser
     if os.path.exists("downloaded_files"):
         shutil.rmtree("downloaded_files")
 
@@ -655,174 +741,225 @@ def handle_cloudflare(sb):
                     span_mark = sb.driver.find_elements(By.CLASS_NAME, "span.mark")
                     if len(span_mark) > 0:
                         span_mark[0].click()
-                        time.sleep(4)
+                        time.sleep(3)
 
                     checkbox = sb.driver.find_element(By.XPATH, "//input[@type='checkbox']")
                     if checkbox:
                         checkbox.click()
-                        time.sleep(4)
+                        time.sleep(3)
                     break
-        except Exception as e:
+        except Exception:
             pass 
 
 
 def parse_duration_streamscharts(streamcharts_url):
 
-    response = requests.get(streamcharts_url, headers=return_user_agent())
+    # Method 1: Using requests
+    response = requests.get(streamcharts_url, headers=return_user_agent(), timeout=10)
     if response.status_code == 200:
         bs = BeautifulSoup(response.content, 'html.parser')
         streamcharts_duration = bs.find_all('div', {'class': 'text-xs font-bold'})[3].text
         streamcharts_duration_in_minutes = parse_website_duration(streamcharts_duration)
-        return streamcharts_duration_in_minutes
-    else:
-        retries = 80
-        reqs = [grequests.get(streamcharts_url, headers=return_user_agent()) for _ in range(retries)]
-        for response in grequests.imap(reqs, size=100):
-            if response.status_code == 200:
-                bs = BeautifulSoup(response.content, 'html.parser')
-                streamcharts_duration = bs.find_all('div', {'class': 'text-xs font-bold'})[3].text
-                streamcharts_duration_in_minutes = parse_website_duration(streamcharts_duration)
+        if streamcharts_duration_in_minutes:
+            return streamcharts_duration_in_minutes
+    
+    # Method 2: Using grequests
+    retries = 10
+    reqs = [grequests.get(streamcharts_url, headers=return_user_agent()) for _ in range(retries)]
+    for response in grequests.imap(reqs, size=100):
+        if response.status_code == 200:
+            bs = BeautifulSoup(response.content, 'html.parser')
+            streamcharts_duration = bs.find_all('div', {'class': 'text-xs font-bold'})[3].text
+            streamcharts_duration_in_minutes = parse_website_duration(streamcharts_duration)
+            if streamcharts_duration_in_minutes:
                 return streamcharts_duration_in_minutes
-            
-        print("Opening Streamcharts with browser...")
-        with SB(uc=True, headless=True) as sb:
-            
-            sb.driver.uc_open_with_reconnect(streamcharts_url, reconnect_time=15)
+    
+    # Method 3: Using Selenium 
+    print("Opening Streamcharts with browser...")
+    with SB(uc=True, headless=True) as sb:
+        
+        try:
+            sb.driver.uc_open_with_reconnect(streamcharts_url, reconnect_time=3)
             handle_cloudflare(sb)
 
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
             streamcharts_duration = bs.find_all('div', {'class': 'text-xs font-bold'})[3].text
             streamcharts_duration_in_minutes = parse_website_duration(streamcharts_duration)
-            return streamcharts_duration_in_minutes
-        
+            if streamcharts_duration_in_minutes:
+                return streamcharts_duration_in_minutes
 
+        except Exception:
+            pass
 
+        sullygnome_url = convert_url(streamcharts_url, "sullygnome")
+        if sullygnome_url:
+            return parse_duration_sullygnome(sullygnome_url)
+
+            
 def parse_duration_twitchtracker(twitchtracker_url):
-
-    response = requests.get(twitchtracker_url, headers=return_user_agent())
+    # Method 1: Using requests
+    response = requests.get(twitchtracker_url, headers=return_user_agent(), timeout=10)
     if response.status_code == 200:
         bs = BeautifulSoup(response.content, 'html.parser')
         twitchtracker_duration = bs.find_all('div', {'class': 'g-x-s-value'})[0].text
         twitchtracker_duration_in_minutes = parse_website_duration(twitchtracker_duration)
-        return twitchtracker_duration_in_minutes
-    else:
-        retries = 80
-        reqs = [grequests.get(twitchtracker_url, headers=return_user_agent()) for _ in range(retries)]
-        for response in grequests.imap(reqs, size=100):
-            if response.status_code == 200:
-                bs = BeautifulSoup(response.content, 'html.parser')
-                twitchtracker_duration = bs.find_all('div', {'class': 'g-x-s-value'})[0].text
-                twitchtracker_duration_in_minutes = parse_website_duration(twitchtracker_duration)
+        if twitchtracker_duration_in_minutes:
+            return twitchtracker_duration_in_minutes
+    
+    # Method 2: Using grequests
+    retries = 10
+    reqs = [grequests.get(twitchtracker_url, headers=return_user_agent()) for _ in range(retries)]
+    for response in grequests.imap(reqs, size=100):
+        if response.status_code == 200:
+            bs = BeautifulSoup(response.content, 'html.parser')
+            twitchtracker_duration = bs.find_all('div', {'class': 'g-x-s-value'})[0].text
+            twitchtracker_duration_in_minutes = parse_website_duration(twitchtracker_duration)
+            if twitchtracker_duration_in_minutes:
                 return twitchtracker_duration_in_minutes
-            
-        print("Opening Twitchtracker with browser...")
-        with SB(uc=True, headless=True ) as sb:
-            sb.driver.uc_open_with_reconnect(twitchtracker_url, reconnect_time=15)
+    
+    # Method 3: Using Selenium
+    print("Opening Twitchtracker with browser...")
+    with SB(uc=True, headless=True ) as sb:
+        try:
+            sb.driver.uc_open_with_reconnect(twitchtracker_url, reconnect_time=3)
             handle_cloudflare(sb)
 
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
             twitchtracker_duration = bs.find_all('div', {'class': 'g-x-s-value'})[0].text
             twitchtracker_duration_in_minutes = parse_website_duration(twitchtracker_duration)
-            return twitchtracker_duration_in_minutes
+            if twitchtracker_duration_in_minutes:
+                return twitchtracker_duration_in_minutes
+        except Exception:
+            pass
 
-
+        sullygnome_url = convert_url(twitchtracker_url, "sullygnome")
+        if sullygnome_url:
+            return parse_duration_sullygnome(sullygnome_url)
 
 
 def parse_duration_sullygnome(sullygnome_url):
 
-    response = requests.get(sullygnome_url, headers=return_user_agent())
+    # Method 1: Using requests
+    response = requests.get(sullygnome_url, headers=return_user_agent(), timeout=10)
     if response.status_code == 200:
         bs = BeautifulSoup(response.content, 'html.parser')
         sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.split(",")
         sullygnome_duration_in_minutes = parse_website_duration(sullygnome_duration)
-        return sullygnome_duration_in_minutes
-    else:
-        retries = 100
-        reqs = [grequests.get(sullygnome_url, headers=return_user_agent()) for _ in range(retries)]
-        for response in grequests.imap(reqs, size=10):
-            if response.status_code == 200:
-                bs = BeautifulSoup(response.content, 'html.parser')
-                sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.split(",")
-                sullygnome_duration_in_minutes = parse_website_duration(sullygnome_duration)
+        if sullygnome_duration_in_minutes:
+            return sullygnome_duration_in_minutes
+    
+    # Method 2: Using grequests
+    retries = 10
+    reqs = [grequests.get(sullygnome_url, headers=return_user_agent()) for _ in range(retries)]
+    for response in grequests.imap(reqs, size=10):
+        if response.status_code == 200:
+            bs = BeautifulSoup(response.content, 'html.parser')
+            sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.split(",")
+            sullygnome_duration_in_minutes = parse_website_duration(sullygnome_duration)
+            if sullygnome_duration_in_minutes:
                 return sullygnome_duration_in_minutes
-            
-        print("Opening Sullygnome with browser...")
-        with SB(uc=True, headless=True) as sb:
+    
+    # Method 3: Using Selenium 
+    print("Opening Sullygnome with browser...")
+    with SB(uc=True, headless=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(sullygnome_url, reconnect_time=15)
+        try:    
+            sb.driver.uc_open_with_reconnect(sullygnome_url, reconnect_time=3)
             handle_cloudflare(sb)
 
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
             sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.split(",")
             sullygnome_duration_in_minutes = parse_website_duration(sullygnome_duration)
-            return sullygnome_duration_in_minutes
-
-
+            if sullygnome_duration_in_minutes:
+                return sullygnome_duration_in_minutes
+        except Exception:
+            pass
+        twitchtracker_url = convert_url(sullygnome_url, "twitchtracker")
+        if twitchtracker_url:
+            return parse_duration_twitchtracker(twitchtracker_url)
+        
 
 def parse_datetime_streamscharts(streamscharts_url):
     print("\nRetrieving stream datetime from Streamscharts...")
-
-    response = requests.get(streamscharts_url, headers=return_user_agent())
+    
+    # Method 1: Using requests
+    response = requests.get(streamscharts_url, headers=return_user_agent(), timeout=10)
     if response.status_code == 200:
 
         bs = BeautifulSoup(response.content, 'html.parser')
         twitchtracker_datetime = bs.find_all('time', {'class': 'ml-2 font-bold'})[0].text.strip().replace(",", "") + ":00"
-        print(f"Datetime: {twitchtracker_datetime}")
-        return twitchtracker_datetime
+        if twitchtracker_datetime:
+            print(f"Datetime: {twitchtracker_datetime}")
+            return twitchtracker_datetime
 
-    else:
-        retries = 30
-        reqs = [grequests.get(streamscharts_url, headers=return_user_agent()) for _ in range(retries)]
-        for response in grequests.imap(reqs, size=100):
-            if response.status_code == 200:
+    # Method 2: Using grequests
+    retries = 10
+    reqs = [grequests.get(streamscharts_url, headers=return_user_agent()) for _ in range(retries)]
+    for response in grequests.imap(reqs, size=100):
+        if response.status_code == 200:
 
-                bs = BeautifulSoup(response.content, 'html.parser')
-                streamscharts_datetime = bs.find_all('time', {'class': 'ml-2 font-bold'})[0].text.strip().replace(",", "") + ":00"
-                stream_datetime = datetime.strptime(streamscharts_datetime, "%d %b %Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
-
+            bs = BeautifulSoup(response.content, 'html.parser')
+            streamscharts_datetime = bs.find_all('time', {'class': 'ml-2 font-bold'})[0].text.strip().replace(",", "") + ":00"
+            stream_datetime = datetime.strptime(streamscharts_datetime, "%d %b %Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
+            if stream_datetime:
                 print(f"Datetime: {stream_datetime}")
                 return stream_datetime
 
-        print("Opening Streamscharts with browser...")
-        with SB(uc=True, headless=True) as sb: 
+    # Method 3: Using Selenium
+    print("Opening Streamscharts with browser...")
+    with SB(uc=True, headless=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(streamscharts_url, reconnect_time=15)
+        try:
+            sb.driver.uc_open_with_reconnect(streamscharts_url, reconnect_time=5)
             handle_cloudflare(sb)
-
-
+        
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
             streamscharts_datetime = bs.find_all('time', {'class': 'ml-2 font-bold'})[0].text.strip().replace(",", "") + ":00"
             stream_datetime = datetime.strptime(streamscharts_datetime, "%d %b %Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
-            
-            print(f"Datetime: {stream_datetime}",)
+            if stream_datetime:
+                print(f"Datetime: {stream_datetime}",)
+                return stream_datetime
+        except Exception:
+            pass
 
-            return stream_datetime
+        sullygnome_url = convert_url(streamscharts_url, "sullygnome")
+        if sullygnome_url:
+            return parse_datetime_sullygnome(sullygnome_url)
+        return None
 
                  
 def parse_datetime_twitchtracker(twitchtracker_url):
     print("\nRetrieving stream datetime from Twitchtracker...")
 
-    response = requests.get(twitchtracker_url, headers=return_user_agent())
+    # Method 1: Using requests
+    response = requests.get(twitchtracker_url, headers=return_user_agent(), timeout=10)
     if response.status_code == 200:
         bs = BeautifulSoup(response.content, 'html.parser')
         twitchtracker_datetime = bs.find_all('div', {'class': 'stream-timestamp-dt'})[0].text
-        print(f"Datetime: {twitchtracker_datetime}")
-        return twitchtracker_datetime
-    else:
-        retries = 30
-        reqs = [grequests.get(twitchtracker_url, headers=return_user_agent()) for _ in range(retries)]
-        for response in grequests.imap(reqs, size=100):
-            if response.status_code == 200:
 
-                bs = BeautifulSoup(response.content, 'html.parser')
-                twitchtracker_datetime = bs.find_all('div', {'class': 'stream-timestamp-dt'})[0].text
+        if twitchtracker_datetime:
+            print(f"Datetime: {twitchtracker_datetime}")
+            return twitchtracker_datetime
+    
+    # Method 2: Using grequests
+    retries = 10
+    reqs = [grequests.get(twitchtracker_url, headers=return_user_agent()) for _ in range(retries)]
+    for response in grequests.imap(reqs, size=100):
+        if response.status_code == 200:
+
+            bs = BeautifulSoup(response.content, 'html.parser')
+            twitchtracker_datetime = bs.find_all('div', {'class': 'stream-timestamp-dt'})[0].text
+
+            if twitchtracker_datetime:
                 print(f"Datetime: {twitchtracker_datetime}")
                 return twitchtracker_datetime
-            
-        print("Opening Twitchtracker with browser...")
-        with SB(uc=True, headless=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(twitchtracker_url, reconnect_time=15)
+    # Method 3: Using Selenium     
+    print("Opening Twitchtracker with browser...")
+    with SB(uc=True, headless=True) as sb:
+
+        try:
+            sb.driver.uc_open_with_reconnect(twitchtracker_url, reconnect_time=3)
             handle_cloudflare(sb)
 
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
@@ -834,18 +971,25 @@ def parse_datetime_twitchtracker(twitchtracker_url):
                 match = re.search(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', description_content)
                 if match:
                     twitchtracker_datetime = match.group(0)
+                    print(f"Datetime: {twitchtracker_datetime}")
+                    return twitchtracker_datetime
+        except Exception:
+            pass
             
-            if not twitchtracker_datetime:
-                print("Error: Unable to find stream datetime.")
-                return None
-            print(f"Datetime: {twitchtracker_datetime}")
-            return twitchtracker_datetime
+        sullygnome_url = convert_url(twitchtracker_url, "sullygnome")
+        if sullygnome_url:
+            return parse_datetime_sullygnome(sullygnome_url)
+        return None
+        
+    
+
 
 
 def parse_datetime_sullygnome(sullygnome_url):
     print("\nRetrieving stream datetime from Sullygnome...")
 
-    response = requests.get(sullygnome_url, headers=return_user_agent())
+    # Method 1: Using requests
+    response = requests.get(sullygnome_url, headers=return_user_agent(), timeout=10)
     if response.status_code == 200:
 
         bs = BeautifulSoup(response.content, 'html.parser')
@@ -853,34 +997,49 @@ def parse_datetime_sullygnome(sullygnome_url):
         modified_stream_date = remove_chars_from_ordinal_numbers(stream_date)
         formatted_stream_date = datetime.strptime(modified_stream_date, "%A %d %B %I:%M%p").strftime("%m-%d %H:%M:%S")
         sullygnome_datetime = str(datetime.now().year) + "-" + formatted_stream_date
-        print(f"Datetime: {sullygnome_datetime}")
-        return sullygnome_datetime
-    else:
-        retries = 100
-        reqs = [grequests.get(sullygnome_url, headers=return_user_agent()) for _ in range(retries)]
-        for response in grequests.imap(reqs, size=100):
 
-            if response.status_code == 200:
-                bs = BeautifulSoup(response.content, 'html.parser')
-                sullygnome_datetime = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[6].text
-                modified_stream_date = remove_chars_from_ordinal_numbers(sullygnome_datetime)
-                formatted_stream_date = datetime.strptime(modified_stream_date, "%A %d %B %I:%M%p").strftime("%m-%d %H:%M:%S")
-                sullygnome_datetime = str(datetime.now().year) + "-" + formatted_stream_date
+        if sullygnome_datetime:
+            print(f"Datetime: {sullygnome_datetime}")
+            return sullygnome_datetime
+    
+    # Method 2: Using grequests
+    retries = 10
+    reqs = [grequests.get(sullygnome_url, headers=return_user_agent()) for _ in range(retries)]
+    for response in grequests.imap(reqs, size=100):
+
+        if response.status_code == 200:
+            bs = BeautifulSoup(response.content, 'html.parser')
+            sullygnome_datetime = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[6].text
+            modified_stream_date = remove_chars_from_ordinal_numbers(sullygnome_datetime)
+            formatted_stream_date = datetime.strptime(modified_stream_date, "%A %d %B %I:%M%p").strftime("%m-%d %H:%M:%S")
+            sullygnome_datetime = str(datetime.now().year) + "-" + formatted_stream_date
+
+            if sullygnome_datetime:
                 print(f"Datetime: {sullygnome_datetime}")
                 return sullygnome_datetime
-        
-        print("Opening Sullygnome with browser...")
-        with SB(uc=True, headless=True ) as sb:
-            sb.driver.uc_open_with_reconnect(sullygnome_url, reconnect_time=15)
+    
+    # Method 3: Using Selenium
+    print("Opening Sullygnome with browser...")
+    with SB(uc=True, headless=True ) as sb:
+
+        try:
+            sb.driver.uc_open_with_reconnect(sullygnome_url, reconnect_time=3)
             handle_cloudflare(sb)
 
             sullygnome_datetime = sb.driver.find_elements(By.CLASS_NAME, "MiddleSubHeaderItemValue")[6].get_attribute("innerHTML")
             modified_stream_date = remove_chars_from_ordinal_numbers(sullygnome_datetime)
             formatted_stream_date = datetime.strptime(modified_stream_date, "%A %d %B %I:%M%p").strftime("%m-%d %H:%M:%S")
             sullygnome_datetime = str(datetime.now().year) + "-" + formatted_stream_date
-            print(f"Datetime: {sullygnome_datetime}")
-            return sullygnome_datetime
 
+            if sullygnome_datetime:
+                print(f"Datetime: {sullygnome_datetime}")
+                return sullygnome_datetime
+        except Exception:
+            pass
+
+        twitchtracker_url = convert_url(sullygnome_url, "twitchtracker")
+        if twitchtracker_url:
+            return parse_datetime_twitchtracker(twitchtracker_url)
 
 
 def unmute_vod(m3u8_link):
@@ -889,7 +1048,7 @@ def unmute_vod(m3u8_link):
     write_m3u8_to_file(m3u8_link, video_filepath)
     file_contents = read_text_file(video_filepath)
     if is_video_muted(m3u8_link):
-        with open(video_filepath, "w") as video_file:
+        with open(video_filepath, "w", encoding="utf-8") as video_file:
             for segment in file_contents:
                 m3u8_link = m3u8_link.replace("index-dvr.m3u8", "")
                 if "-unmuted" in segment and not segment.startswith("#"):
@@ -902,7 +1061,7 @@ def unmute_vod(m3u8_link):
                     video_file.write(f"{segment}\n")
         print(f"{os.path.normpath(video_filepath)} has been unmuted!\n")
     else:
-        with open(video_filepath, "w") as video_file:
+        with open(video_filepath, "w", encoding="utf-8") as video_file:
             for segment in file_contents:
                 m3u8_link = m3u8_link.replace("index-dvr.m3u8", "")
                 if not segment.startswith("#"):
@@ -913,9 +1072,9 @@ def unmute_vod(m3u8_link):
 
 
 def mark_invalid_segments_in_playlist(m3u8_link):
-    # unmute_vod(m3u8_link)
+    unmute_vod(m3u8_link)
     vod_file_path = get_vod_filepath(parse_streamer_from_m3u8_link(m3u8_link), parse_video_id_from_m3u8_link(m3u8_link))
-    with open(vod_file_path, "r") as f:
+    with open(vod_file_path, "r", encoding="utf-8") as f:
         lines = f.read().splitlines()
     print("Checking for Invalid Segments...")
     segments = validate_playlist_segments(get_all_playlist_segments(m3u8_link))
@@ -934,13 +1093,13 @@ def mark_invalid_segments_in_playlist(m3u8_link):
             modified_playlist.append("#" + line)
         else:
             modified_playlist.append(line)
-    with open(vod_file_path, "w") as f:
+    with open(vod_file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(modified_playlist))
 
 
 def return_m3u8_duration(m3u8_link):
     total_duration = 0
-    file_contents = requests.get(m3u8_link, stream=True).text.splitlines()
+    file_contents = requests.get(m3u8_link, stream=True, timeout=30).text.splitlines()
     for line in file_contents:
         if line.startswith("#EXTINF:"):
             segment_duration = float(line.split(":")[1].split(",")[0])
@@ -959,6 +1118,7 @@ def process_m3u8_configuration(m3u8_link):
         print("Video doesn't contain muted segments")
         os.remove(get_vod_filepath(parse_streamer_from_m3u8_link(m3u8_link), parse_video_id_from_m3u8_link(m3u8_link)))
     if read_config_by_key('settings', 'CHECK_SEGMENTS'):
+        print("Checking valid segments...")
         validate_playlist_segments(playlist_segments)
 
 
@@ -968,7 +1128,7 @@ def get_all_playlist_segments(m3u8_link):
     video_file_path = get_vod_filepath(parse_streamer_from_m3u8_link(m3u8_link), parse_video_id_from_m3u8_link(m3u8_link))
     write_m3u8_to_file(m3u8_link, video_file_path)
     file_contents = read_text_file(video_file_path)
-    with open(video_file_path, "w") as video_file:
+    with open(video_file_path, "w", encoding="utf-8") as video_file:
         for segment in file_contents:
             m3u8_link = m3u8_link.replace("index-dvr.m3u8", "")
             if "-unmuted" in segment and not segment.startswith("#"):
@@ -987,48 +1147,103 @@ def get_all_playlist_segments(m3u8_link):
     return segment_list
 
 
+# def validate_playlist_segments(segments):
+#     valid_segments = []
+#     all_segments = [url.strip() for url in segments]
+#     available_segment_count = 0
+
+#     start_time = time.time()
+
+#     request_session = grequests.Session()
+#     rs = (grequests.head(u, session=request_session) for u in all_segments)
+#     responses = grequests.imap(rs, size=100)
+
+#     for i, response in enumerate(responses):
+#         print(f"\rChecking segments.. {i + 1} / {len(all_segments)}", end="")
+#         if response is not None:
+#             if response.status_code == 200:
+#                 available_segment_count += 1
+#                 valid_segments.append(response.url)
+
+
+#     if (available_segment_count == len(all_segments)) or (available_segment_count == 0):
+#         print(f"\n{available_segment_count} out of {len(all_segments)} Segments are Available.\n")
+#     elif available_segment_count < len(all_segments):
+#         print(f"\n{available_segment_count} out of {len(all_segments)} Segments are Available. See option 4 on the menu to recheck segments availability.\n")
+
+#     elapsed_time = time.time() - start_time
+#     print(f"Elapsed time: {elapsed_time:.2f} seconds")
+#     return valid_segments
+
 def validate_playlist_segments(segments):
     valid_segments = []
     all_segments = [url.strip() for url in segments]
     available_segment_count = 0
 
-
-    request_session = grequests.Session()
-    rs = (grequests.head(u, session=request_session) for u in all_segments)
-    responses = grequests.imap(rs, size=100)
-
-
-    for i, response in enumerate(responses):
-        print(f"\rChecking segments.. {i + 1} / {len(all_segments)}", end="")
-        if response is not None:
+    def fetch_status(url):
+        nonlocal available_segment_count, valid_segments
+        try:
+            response = requests.head(url, timeout=10)
             if response.status_code == 200:
                 available_segment_count += 1
                 valid_segments.append(response.url)
+            return response
+        except Exception as exc:
+            print(f'{url} generated an exception: {exc}')
+            return None
 
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(fetch_status, url) for url in all_segments]
+        for i in enumerate(concurrent.futures.as_completed(futures)):
+            index, _ = i
+            print(f"\rChecking segments {index + 1} / {len(all_segments)}", end="")
 
-    if (available_segment_count == len(all_segments)) or (available_segment_count == 0):
-        print(f"\n{available_segment_count} out of {len(all_segments)} Segments are Available.\n")
+    if available_segment_count == len(all_segments) or available_segment_count == 0:
+        print("\nAll Segments are Available.\n")
     elif available_segment_count < len(all_segments):
         print(f"\n{available_segment_count} out of {len(all_segments)} Segments are Available. See option 4 on the menu to recheck segments availability.\n")
+
     return valid_segments
 
 
-
 def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
-
     vod_age = calculate_days_since_broadcast(timestamp)
 
     if vod_age > 60:
-        print("Video is older than 60 days. Chances of recovery are very slim.\n")
-        
+        print("Video is older than 60 days. Chances of recovery are very slim.")
+
     vod_url = return_supported_qualities(get_vod_urls(streamer_name, video_id, timestamp))
     if vod_url is None:
-        alternate_websites = '\n'.join(generate_website_links(streamer_name, video_id, tracker_url))
-        print(f"Try using an alternate website:")
-        print(f"\n{alternate_websites}\n")
-        exit()
-    print(f"\nProcessing URL {vod_url}") 
+        alternate_websites = generate_website_links(streamer_name, video_id, tracker_url)
+
+        print("--> Unable to recover video from primary source, trying alternate sources...")
+        new_timestamp = None
+        for website in alternate_websites:
+            parsed_timestamp = None
+            if "streamscharts" in website:
+                parsed_timestamp = parse_datetime_streamscharts(website)
+            elif "twitchtracker" in website:
+                parsed_timestamp = parse_datetime_twitchtracker(website)
+            elif "sullygnome" in website:
+                parsed_timestamp = parse_datetime_sullygnome(website)
+
+            if parsed_timestamp and parsed_timestamp != timestamp:
+                new_timestamp = parsed_timestamp
+                break
+
+        if new_timestamp:
+            vod_url = return_supported_qualities(get_vod_urls(streamer_name, video_id, new_timestamp))
+            if vod_url:
+                print("Successfully recovered video from alternate source.")
+                print(f"New URL: {vod_url}\n")
+                return vod_url
+
+        print("\nUnable to recover the video!")
+        return None
+
+    print(f"\nProcessing URL {vod_url}")
     return vod_url
+
 
 def bulk_vod_recovery():
     csv_file_path = get_and_validate_csv_filename()
@@ -1047,6 +1262,9 @@ def clip_recover(streamer, video_id, duration):
     iteration_counter, valid_counter = 0, 0
     valid_url_list = []
     print()
+
+    start_time = time.time()
+
     clip_format = print_clip_format_menu().split(" ")
     full_url_list = get_all_clip_urls(get_clip_format(video_id, calculate_max_clip_offset(duration)), clip_format)
 
@@ -1059,10 +1277,12 @@ def clip_recover(streamer, video_id, duration):
         if response.status_code == 200:
             valid_counter += 1
             valid_url_list.append(response.url)
+
     print(f"\n{valid_counter} Clip(s) Found")
 
-
     if valid_url_list:
+        elapsed_time = time.time() - start_time
+        print(f"Elapsed time: {elapsed_time:.2f} seconds")
         for url in valid_url_list:
             write_text_file(url, get_log_filepath(streamer, video_id))
         if read_config_by_key('settings', 'DOWNLOAD_CLIPS') or input("Do you want to download the recovered clips (Y/N): ").upper() == "Y":
@@ -1083,17 +1303,16 @@ def get_and_validate_csv_filename():
         window.wm_attributes('-topmost', 1)
         window.withdraw() 
 
-        file_path = filedialog.askopenfilename(parent=window, title="Select A File", filetypes = (("CSV files","*.csv"),("all files","*.*")))
+        file_path = filedialog.askopenfilename(parent=window, title="Select The CSV File", filetypes = (("CSV files","*.csv"),("all files","*.*")))
         if not file_path:
-             print("No file selected. Exiting.\n")
-             exit()
+            print("No file selected. Exiting.\n")
+            sys.exit()
         window.destroy()
         csv_filename = os.path.basename(file_path)
         pattern = r"^[a-zA-Z0-9_]{4,25} - Twitch stream stats"
         if bool(re.match(pattern, csv_filename)):
             return file_path
-        else:
-            print("The CSV filename MUST be the original filename that was downloaded from sullygnome!")
+        print("The CSV filename MUST be the original filename that was downloaded from sullygnome!")
 
 
 def parse_clip_csv_file(file_path):
@@ -1126,7 +1345,7 @@ def parse_vod_csv_file(file_path):
 def merge_csv_files(csv_filename, directory_path):
     csv_list = [file for file in os.listdir(directory_path) if file.endswith(".csv")]
     header_saved = False
-    with open(os.path.join(directory_path, f"{csv_filename.title()}_MERGED.csv"), "w", newline="") as output_file:
+    with open(os.path.join(directory_path, f"{csv_filename.title()}_MERGED.csv"), "w", newline="", encoding="utf-8") as output_file:
         writer = csv.writer(output_file)
         for file in csv_list:
             reader = read_csv_file(os.path.join(directory_path, file))
@@ -1180,7 +1399,7 @@ def bulk_clip_recovery():
             csv_file_path = get_and_validate_csv_filename()
             csv_file_path = csv_file_path.replace('"', '')
     elif bulk_recovery_option == "3":
-        exit()
+        sys.exit()
     user_option = input("Do you want to download all clips recovered (Y/N)? ")
     clip_format = print_clip_format_menu().split(" ")
     stream_info_dict = parse_clip_csv_file(csv_file_path)
@@ -1242,12 +1461,8 @@ def download_clips(directory, streamer_name, video_id):
         else:
             print(f"Failed to download.... {response.url}")
 
-
-
-            
+     
 def download_m3u8_video_url(m3u8_link, output_filename):
-
-    print(output_filename)
     
     command = [
         'ffmpeg',
@@ -1259,8 +1474,7 @@ def download_m3u8_video_url(m3u8_link, output_filename):
         os.path.join(get_default_directory(), output_filename),
     ]
 
-    subprocess.run(command, shell=True)
-
+    subprocess.run(command, shell=True, check=True)
 
 
 def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, video_end_time):
@@ -1276,8 +1490,7 @@ def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, 
         os.path.join(get_default_directory(), output_filename),
     ]
 
-    subprocess.run(command, shell=True)
-
+    subprocess.run(command, shell=True, check=True)
 
 
 def download_m3u8_video_file(m3u8_file_path, output_filename):
@@ -1292,9 +1505,7 @@ def download_m3u8_video_file(m3u8_file_path, output_filename):
  
     ]
 
-    subprocess.run(command, shell=True)
-
-
+    subprocess.run(command, shell=True, check=True)
 
 def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_time, video_end_time):
     command = [
@@ -1309,10 +1520,11 @@ def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_
         os.path.join(get_default_directory(), output_filename),
     ]
 
-    subprocess.run(command, shell=True)
+    subprocess.run(command, shell=True, check=True)
+
 
 def print_confirm_download_menu():
-    menu_options = ["\n1) Start Downloading", "2) Specify Start and End time", "3) Exit"]
+    menu_options = ["1) Start Downloading", "2) Specify Start and End time", "3) Exit"]
     print("\n".join(menu_options))
     try:
         return int(input("\nChoose an option: "))
@@ -1321,23 +1533,21 @@ def print_confirm_download_menu():
         return print_confirm_download_menu() 
 
 
-
 def handle_vod_url_normal(vod_url):
 
-    # vod_filename = "{}_{}.mp4".format(parse_streamer_from_m3u8_link(vod_url), parse_video_id_from_m3u8_link(vod_url))
-    vod_filename = "{}_{}{}".format(parse_streamer_from_m3u8_link(vod_url), parse_video_id_from_m3u8_link(vod_url), get_default_video_format())
+    vod_filename = f"{parse_streamer_from_m3u8_link(vod_url)}_{parse_video_id_from_m3u8_link(vod_url)}{get_default_video_format()}"
 
     start = time.time()
     download_m3u8_video_url(vod_url, vod_filename)
 
     formatted_elapsed = "{:.2f}".format(time.time()-start)
-    print("\n--> Vod downloaded to {}".format(os.path.join(get_default_directory(), vod_filename)) + f" in {formatted_elapsed} seconds\n")
+    print(f"\n--> Vod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed} seconds\n")
+
 
 
 def handle_vod_url_trim(vod_url):
 
-    # vod_filename = "{}_{}.mp4".format(parse_streamer_from_m3u8_link(vod_url), parse_video_id_from_m3u8_link(vod_url))
-    vod_filename = "{}_{}{}".format(parse_streamer_from_m3u8_link(vod_url), parse_video_id_from_m3u8_link(vod_url), get_default_video_format())
+    vod_filename = f"{parse_streamer_from_m3u8_link(vod_url)}_{parse_video_id_from_m3u8_link(vod_url)}{get_default_video_format()}"
 
     vod_start_time = input("Enter start time (HH:MM:SS): ")
     vod_end_time = input("Enter end time (HH:MM:SS): ")
@@ -1346,11 +1556,12 @@ def handle_vod_url_trim(vod_url):
     download_m3u8_video_url_slice(vod_url, vod_filename, vod_start_time, vod_end_time)
 
     formatted_elapsed = "{:.2f}".format(time.time()-start)
-    print("\n--> Vod downloaded to {}".format(os.path.join(get_default_directory(), vod_filename)) + f" in {formatted_elapsed} seconds\n")
+    print(f"\n--> Vod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed} seconds\n")
 
 
 
 def run_vod_recover():
+
 
     print("WELCOME TO VOD RECOVERY!" + "\n")
     menu = 0
@@ -1361,30 +1572,23 @@ def run_vod_recover():
             vod_mode = print_video_mode_menu()
             
             if vod_mode == 1:
-                vod_recovery_method = print_video_recovery_menu()
-                if vod_recovery_method == 1:
-                    link = website_vod_recover()
-                    if link is None:
-                        print("No videos found using the current domain list.")
-                    startDownload = print_confirm_download_menu()
-                    if startDownload == 1:
-                        handle_vod_url_normal(link)
-                    elif startDownload == 2:
-                        handle_vod_url_trim(link)
-                    elif startDownload == 3:
-                        print()
-                        continue
-                elif vod_recovery_method == 2:
-                    manual_vod_recover()
-                    
-                elif vod_recovery_method == 3:
+                link = website_vod_recover()
+                if link is None:
+                    sys.exit()
+                print()
+                start_download = print_confirm_download_menu()
+                if start_download == 1:
+                    handle_vod_url_normal(link)
+                elif start_download == 2:
+                    handle_vod_url_trim(link)
+                elif start_download == 3:
                     print()
                     continue
-                else:
-                    print("--> Invalid option! Returning to main menu." + "\n")
             elif vod_mode == 2:
-                bulk_vod_recovery()
+                manual_vod_recover()
             elif vod_mode == 3:
+                bulk_vod_recovery()    
+            elif vod_mode == 4:
                 print()
                 continue
             else:
@@ -1417,14 +1621,16 @@ def run_vod_recover():
             url = print_get_m3u8_link_menu()
             if is_video_muted(url):
                 unmute_vod(url)
-                exit()
+                sys.exit()
             else:
-                print("Vod does NOT contain muted segments\n")
+                print("Vod doesn't have muted segments!\n")
+                input("Press Enter to return to the main menu...")
+                print()
         elif menu == 4:
             mode = print_handle_m3u8_availability_menu()
             if mode == 1:
                 url = print_get_m3u8_link_menu()
-                print("\nChecking Valid Segments...")
+                print("Checking Valid Segments...")
                 validate_playlist_segments(get_all_playlist_segments(url))
                 os.remove(get_vod_filepath(parse_streamer_from_m3u8_link(url), parse_video_id_from_m3u8_link(url)))
             elif mode == 2:
@@ -1448,9 +1654,9 @@ def run_vod_recover():
                 window.wm_attributes('-topmost', 1)
                 window.withdraw()
 
-                dir = get_default_directory()
+                directory = get_default_directory()
                 file_path = filedialog.askopenfilename(parent=window,
-                                  initialdir=dir,
+                                  initialdir=directory,
                                   title="Select A File",
                                   filetypes = (("M3U8 files", "*.m3u8"), ("All files", "*")))
                 window.destroy()
@@ -1466,11 +1672,12 @@ def run_vod_recover():
                     vod_end_time = input("Enter end time (HH:MM:SS): ")
                     video_format = get_default_video_format()
                     download_m3u8_video_file_slice(m3u8_file_path, parse_vod_filename(m3u8_file_path) + video_format, vod_start_time, vod_end_time)
-                    print("\n--> Vod downloaded to {}\n".format(os.path.join(get_default_directory(),  parse_vod_filename(m3u8_file_path) + video_format)))
+                    print(f"\n--> Vod downloaded to {os.path.join(get_default_directory(), parse_vod_filename(m3u8_file_path) + video_format)}\n")
                 else:
                     video_format = get_default_video_format()
                     download_m3u8_video_file(m3u8_file_path, parse_vod_filename(m3u8_file_path) + video_format)
-                    print("\n--> Vod downloaded to {}\n".format(os.path.join(get_default_directory(), parse_vod_filename(m3u8_file_path) + video_format)))
+                    print(f"\n--> Vod downloaded to {os.path.join(get_default_directory(), parse_vod_filename(m3u8_file_path) + video_format)}\n")
+
             elif download_type == 3:
                 continue
         elif menu == 6:
@@ -1479,11 +1686,12 @@ def run_vod_recover():
             set_default_video_format()
         elif menu == 8:
             print_help()
-            input("Press Enter to return to the main menu...\n")
+            input("Press Enter to return to the main menu...")
+            print()
 
         elif menu == 9:
             print("Exiting...")
-            exit()
+            sys.exit()
         else:
             print("--> Invalid option! Returning to main menu." + "\n")
             run_vod_recover()
