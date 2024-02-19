@@ -11,14 +11,10 @@
     "9) Exit": "Exits the application."
   },
   "VOD_MODE_MENU": {
-    "1) Single VOD Recovery": "Recovers a single video.",
-    "2) Bulk VOD Recovery from SullyGnome CSV Export": "Recovers all available videos based on a CSV file of streams exported from SullyGnome.",
-    "3) Return": "Returns to main menu."
-  },
-  "VOD_RECOVERY_MENU": {
     "1) Website Video Recovery": "Recovers videos by scraping websites to retrieve stream information.",
     "2) Manual Video Recovery": "Recovers videos using manual input of stream information.",
-    "3) Return": "Returns to main menu."
+    "4) Bulk VOD Recovery from SullyGnome CSV Export": "Recovers all available videos based on a CSV file of streams exported from SullyGnome.",
+    "4) Return": "Returns to main menu."
   },
   "CLIP_TYPE_MENU": {
     "1) Recover All Clips from a single video": "Recovers all clips from a single video.",
