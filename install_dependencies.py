@@ -1,5 +1,3 @@
-
-
 import os
 import importlib
 
@@ -12,7 +10,7 @@ def check_package(package_name):
 
 def install_requirements():
     requirements_file = 'requirements.txt'
-    with open(requirements_file) as f:
+    with open(requirements_file, encoding='utf-8') as f:
         packages = f.read().splitlines()
     for package in packages:
         if not check_package(package):
