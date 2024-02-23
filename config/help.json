@@ -42,5 +42,9 @@
     "1) From M3U8 Link": "Downloads from the M3U8 link.",
     "2) From M3U8 File": "Downloads from the M3U8 file.",
     "3) Return": "Returns to main menu."
+  },
+  "PLAYING_M3U8_FILE": {
+    "1": "Download the file and play it with VLC or another player.",
+    "2": "Or Copy the M3U8 url, go to VLC -> Media -> Open Network Stream -> Paste the url and click play."
   }
 }
