@@ -4,5 +4,6 @@
     "DOWNLOAD_CLIPS": false,
     "REMOVE_LOG_FILE": true,
     "DEFAULT_DIRECTORY": "~/Downloads/",
-    "DEFAULT_VIDEO_FORMAT": ".mp4"
+    "DEFAULT_VIDEO_FORMAT": ".mp4",
+    "VLC_LOCATION": ""
 }
