@@ -21,15 +21,29 @@ from seleniumbase import SB
 import requests
 
 
+supported_formats = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
+
+def read_config_by_key(config_file, key):
+    with open(f"config/{config_file}.json", 'r', encoding="utf-8") as input_config_file:
+        config = json.load(input_config_file)
+    return config.get(key, None)
+
+def get_default_video_format():
+    default_video_format = read_config_by_key('settings', 'DEFAULT_VIDEO_FORMAT')
+    
+    if default_video_format in supported_formats:
+        return default_video_format
+    return ".mp4"
+
 def print_main_menu():
-    menu_options = ["1) VOD Recovery", "2) Clip Recovery", "3) Unmute M3U8 File", "4) Check M3U8 Availability", "5) Download M3U8 File (.mp4 Default)",
-                     "6) Set Download Directory", "7) Set Default Video Format", "8) Help", "9) Exit"]
+    default_video_format = get_default_video_format() or ".mp4"
+    menu_options = ["1) VOD Recovery", "2) Clip Recovery",  f"3) Download M3U8 File ({default_video_format})",
+                    "4) Unmute & Check M3U8 Availability", "5) Set Default Video Format", "6) Set Download Directory", "7) Help", "8) Exit"]
     print("\n".join(menu_options))
     try:
         return int(input("\nChoose an option: "))
     except ValueError:
         print("\n --> Invalid option. Please try again!" + "\n")
-
 
 def print_video_mode_menu():
     vod_type_options = ["1) Website Video Recovery", "2) Manual Recovery", "3) Bulk Video Recovery from SullyGnome CSV Export", "4) Return"]
@@ -50,7 +64,6 @@ def print_video_recovery_menu():
 def print_get_m3u8_link_menu():
     m3u8_url = input("Enter M3U8 Link: ").strip(' "\'')
     print()
-    # if possible strip the m3u8 link
     if m3u8_url.endswith(".m3u8"):
         return m3u8_url
     print("Invalid M3U8 link, please try again!\n")
@@ -89,7 +102,7 @@ def print_download_type_menu():
         return print_download_type_menu()
 
 def print_handle_m3u8_availability_menu():
-    handle_m3u8_availability_options = ["1) Check M3U8 Available Segments", "2) Remove Muted and Unavailable Segments", "3) Return"]
+    handle_m3u8_availability_options = ["1) Check if muted or has unavailable segments", "2) Unmute and remove unavailable segments", "3) Return"]
     print("\n".join(handle_m3u8_availability_options))
     try:
         return int(input("\nSelect Option: "))
@@ -101,12 +114,6 @@ def read_config_file(config_file):
     with open(f"config/{config_file}.json", encoding="utf-8") as config_file:
         config = json.load(config_file)
     return config
-
-
-def read_config_by_key(config_file, key):
-    with open(f"config/{config_file}.json", 'r', encoding="utf-8") as input_config_file:
-        config = json.load(input_config_file)
-    return config.get(key, None)
 
 
 def print_help():
@@ -254,15 +261,14 @@ def parse_sullygnome_url(sullygnome_url):
 
 def set_default_video_format():
     print("Select the default video format")
-    video_format_options = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
-    for i, format_option in enumerate(video_format_options, start=1):
+    for i, format_option in enumerate(supported_formats, start=1):
         print(f"{i}) {format_option}")
 
     user_option = str(input("\nChoose a video format: "))
     print(user_option)
-    if user_option in [str(i) for i in range(1, len(video_format_options) + 1)]:
-        selected_format = video_format_options[int(user_option) - 1]
+    if user_option in [str(i) for i in range(1, len(supported_formats) + 1)]:
+        selected_format = supported_formats[int(user_option) - 1]
         config_file_path = "config/settings.json"
         try:
             with open(config_file_path, 'r', encoding="utf-8") as config_file:
@@ -285,10 +291,6 @@ def set_default_video_format():
         print("\n --> Invalid option. Please try again!" + "\n")
         return
 
-
-def get_default_video_format():
-    default_video_format = read_config_by_key('settings', 'DEFAULT_VIDEO_FORMAT')
-    return default_video_format
 
 def set_default_directory():
     print("Select the default directory")
@@ -592,6 +594,7 @@ def get_vod_urls(streamer_name, video_id, start_timestamp):
     random.shuffle(domains)
     print("\nSearching for M3U8 URL...")
 
+
     try:
         for seconds in range(60):
             base_url = f"{streamer_name}_{video_id}_{int(calculate_epoch_timestamp(start_timestamp, seconds))}"
@@ -730,7 +733,6 @@ def handle_cloudflare(sb):
 
 
 def parse_duration_streamscharts(streamcharts_url):
-
     try:
         # Method 1: Using requests
         response = requests.get(streamcharts_url, headers=return_user_agent(), timeout=10)
@@ -1069,7 +1071,7 @@ def mark_invalid_segments_in_playlist(m3u8_link):
     vod_file_path = get_vod_filepath(parse_streamer_from_m3u8_link(m3u8_link), parse_video_id_from_m3u8_link(m3u8_link))
     with open(vod_file_path, "r", encoding="utf-8") as f:
         lines = f.read().splitlines()
-    print("Checking for Invalid Segments...")
+    print("Checking for invalid segments...")
     segments = validate_playlist_segments(get_all_playlist_segments(m3u8_link))
     if not segments:
         print("No segments are valid. Cannot generate M3U8! Returning to main menu.")
@@ -1182,7 +1184,7 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
     if vod_url is None:
         alternate_websites = generate_website_links(streamer_name, video_id, tracker_url)
 
-        print("--> Unable to recover video from primary source, trying alternate sources...")
+        print("Unable to recover video from primary source, trying alternate sources...")
          
         all_timestamps = [timestamp]
 
@@ -1194,12 +1196,10 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
             elif "twitchtracker" in website:
                 parsed_timestamp = parse_datetime_twitchtracker(website)
             elif "sullygnome" in website:
-                # if timestamp contain year that differs from current year, skip the website
+                # if timestamp contains a year that differs from current year, skip the website
                 if timestamp and datetime.now().year != int(timestamp.split("-")[0]):
                     continue
                 parsed_timestamp = parse_datetime_sullygnome(website)
-                print(f"New sullygnome: {parsed_timestamp}")
-
 
             if parsed_timestamp and parsed_timestamp != timestamp and parsed_timestamp not in all_timestamps:
                 all_timestamps.append(parsed_timestamp)
@@ -1209,7 +1209,7 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
                     print(f"New URL: {vod_url}\n")
                     return vod_url
         if not vod_url:
-            print("\nUnable to recover the video!")
+            print("\n--> Unable to recover the video!")
             exit()
     print(f"\nProcessing URL {vod_url}")
     return vod_url
@@ -1505,16 +1505,6 @@ def get_VLC_Location():
     except Exception:
         return None
 
-def print_confirm_download_menu():
-    menu_options = ["1) Start Downloading", "2) Specify Start and End time", "3) Play with VLC", "4) Exit"]
-
-    print("\n".join(menu_options))
-    try:
-        return int(input("\nChoose an option: "))
-    except ValueError:
-        print("\n --> Invalid option. Please try again!" + "\n")
-        return print_confirm_download_menu() 
-
 
 def handle_vod_url_normal(vod_url):
 
@@ -1523,7 +1513,7 @@ def handle_vod_url_normal(vod_url):
     start = time.time()
     download_m3u8_video_url(vod_url, vod_filename)
 
-    formatted_elapsed = "{:.2f}".format(time.time()-start)
+    formatted_elapsed = f"{time.time() - start:.2f}"
     print(f"\n--> Vod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed} seconds\n")
 
 
@@ -1551,6 +1541,9 @@ def handle_vod_url_trim(vod_url):
 
 
 def handle_download_menu(link):
+    vlc_location = get_VLC_Location()
+    exit_option = 3 if not vlc_location else 4
+    
     while True:
         start_download = print_confirm_download_menu()
         if start_download == 1:
@@ -1559,18 +1552,26 @@ def handle_download_menu(link):
         elif start_download == 2:
             handle_vod_url_trim(link)
             break
-        elif start_download == 3:
-            vlc_location = get_VLC_Location()
-            if vlc_location is not None:
-                subprocess.Popen([get_VLC_Location(), link])
-            else: 
-                print("\n--> VLC Not Found! If VLC is installed, please specify the location in the settings.json file.\n")
-                continue 
-        elif start_download == 4:
-            print()
-            break
+        elif start_download == 3 and vlc_location:
+            subprocess.Popen([vlc_location, link])
+        elif start_download == exit_option:
+            sys.exit("Exiting...")
         else:
             print("--> Invalid option! Please choose a valid option." + "\n")
+
+def print_confirm_download_menu():
+    vlc_location = get_VLC_Location()
+    menu_options = ["1) Start Downloading", "2) Specify Start and End time"]
+    if vlc_location:
+        menu_options.append("3) Play with VLC")
+    menu_options.append(f"{3 if not vlc_location else 4}) Exit")
+
+    print("\n".join(menu_options))
+    try:
+        return int(input("\nChoose an option: "))
+    except ValueError:
+        print("\n --> Invalid option. Please try again!" + "\n")
+        return print_confirm_download_menu()
 
 def run_vod_recover():
 
@@ -1622,28 +1623,6 @@ def run_vod_recover():
             else:
                 print("Invalid option! Returning to main menu.\n")
         elif menu == 3:
-            url = print_get_m3u8_link_menu()
-            if is_video_muted(url):
-                unmute_vod(url)
-                sys.exit()
-            else:
-                print("Vod doesn't have muted segments!\n")
-                input("Press Enter to return to the main menu...")
-                print()
-        elif menu == 4:
-            mode = print_handle_m3u8_availability_menu()
-            if mode == 1:
-                url = print_get_m3u8_link_menu()
-                print("Checking Valid Segments...")
-                validate_playlist_segments(get_all_playlist_segments(url))
-                os.remove(get_vod_filepath(parse_streamer_from_m3u8_link(url), parse_video_id_from_m3u8_link(url)))
-            elif mode == 2:
-                url = print_get_m3u8_link_menu()
-                mark_invalid_segments_in_playlist(url)
-            elif menu == 3:
-                continue
-
-        elif menu == 5:
             download_type = print_download_type_menu()
             if download_type == 1:
                 vod_url = print_get_m3u8_link_menu()
@@ -1679,16 +1658,32 @@ def run_vod_recover():
 
             elif download_type == 3:
                 continue
+        elif menu == 4:
+            mode = print_handle_m3u8_availability_menu()
+            if mode == 1:
+                url = print_get_m3u8_link_menu()
+                is_muted = is_video_muted(url)
+                if is_muted:
+                    print("Video contains muted segments")
+                print("\nChecking for invalid segments...")
+                validate_playlist_segments(get_all_playlist_segments(url))
+                os.remove(get_vod_filepath(parse_streamer_from_m3u8_link(url), parse_video_id_from_m3u8_link(url)))
+            elif mode == 2:
+                url = print_get_m3u8_link_menu()
+                mark_invalid_segments_in_playlist(url)
+            elif menu == 3:
+                continue
+        elif menu == 5:
+            set_default_video_format()
         elif menu == 6:
             set_default_directory()
+
         elif menu == 7:
-            set_default_video_format()
-        elif menu == 8:
             print_help()
             input("Press Enter to return to the main menu...")
             print()
 
-        elif menu == 9:
+        elif menu == 8:
             print("Exiting...")
             sys.exit()
         else:
