@@ -4,7 +4,7 @@ This is a Fork of [VodRecovery](https://github.com/Shishkebaboo/VodRecovery) whi
 
 ## Installation and Setup
 
-1. Download and install [Python](https://www.python.org/downloads/)
+1. Download and install [Python](https://www.python.org/downloads/) and when installing ensure to check the box that says "Add Python to environment variables"
 2. Download and install [FFmpeg](https://ffmpeg.org/download.html)
 3. Download this repository with: `git clone https://github.com/MacielG1/VodRecovery` or by clicking the green "Code" button and selecting "Download ZIP"
 4. Navigate to the downloaded folder
