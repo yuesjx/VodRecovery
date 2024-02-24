@@ -594,7 +594,6 @@ def get_vod_urls(streamer_name, video_id, start_timestamp):
     random.shuffle(domains)
     print("\nSearching for M3U8 URL...")
 
-
     try:
         for seconds in range(60):
             base_url = f"{streamer_name}_{video_id}_{int(calculate_epoch_timestamp(start_timestamp, seconds))}"
@@ -922,7 +921,6 @@ def parse_datetime_streamscharts(streamscharts_url):
                 return stream_datetime
         except Exception:
             pass
-
     return None
 
 def parse_datetime_twitchtracker(twitchtracker_url):
@@ -973,7 +971,6 @@ def parse_datetime_twitchtracker(twitchtracker_url):
                     return twitchtracker_datetime
         except Exception:
             pass
-
     return None
                     
 
@@ -1012,8 +1009,6 @@ def parse_datetime_sullygnome(sullygnome_url):
                     return sullygnome_datetime
     except Exception:
         pass
-
-
     # Method 3: Using Selenium
     print("Opening Sullygnome with browser...")
     with SB(uc=True, headless=True) as sb:
@@ -1184,7 +1179,7 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
     if vod_url is None:
         alternate_websites = generate_website_links(streamer_name, video_id, tracker_url)
 
-        print("Unable to recover video from primary source, trying alternate sources...")
+        print("Unable to recover video from original url, trying alternate sources...")
          
         all_timestamps = [timestamp]
 
@@ -1205,7 +1200,7 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
                 all_timestamps.append(parsed_timestamp)
                 vod_url = return_supported_qualities(get_vod_urls(streamer_name, video_id, parsed_timestamp))
                 if vod_url:
-                    print("Successfully recovered video from alternate source.")
+                    print("\nSuccessfully recovered video from alternate source.")
                     print(f"New URL: {vod_url}\n")
                     return vod_url
         if not vod_url:
