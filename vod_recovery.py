@@ -21,6 +21,7 @@ from seleniumbase import SB
 import requests
 
 supported_formats = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
+Current_Version = "1.1.1"
 
 def read_config_by_key(config_file, key):
     with open(f"config/{config_file}.json", 'r', encoding="utf-8") as input_config_file:
@@ -43,10 +44,8 @@ def print_main_menu():
         "2) Clip Recovery",
         f"3) Download VOD ({default_video_format})",
         "4) Unmute & Check M3U8 Availability",
-        "5) Set Default Video Format",
-        "6) Set Download Directory",
-        "7) Help",
-        "8) Exit"
+        "5) Options",
+        "6) Exit"
     ]
     while True:
         print("\n".join(menu_options))
@@ -181,7 +180,7 @@ def print_download_type_menu():
 def print_handle_m3u8_availability_menu():
     handle_m3u8_availability_options = [
         "1) Check if M3U8 file is muted",
-        "2) Unmute and remove invalid segments",
+        "2) Unmute & Remove invalid segments",
         "3) Return"
     ]
     while True:
@@ -189,6 +188,25 @@ def print_handle_m3u8_availability_menu():
         try:
             choice = int(input("\nSelect Option: "))
             if choice not in range(1, len(handle_m3u8_availability_options) + 1):
+                raise ValueError("Invalid option")
+            return choice
+        except ValueError:
+            print("\n✖  Invalid option! Please try again:\n")
+
+
+def print_options_menu():
+    options_menu = [
+        "1) Set Default Video Format",
+        "2) Set Download Directory",
+        "3) Check for Updates",
+        "4) Help",
+        "5) Return"
+    ]
+    while True:
+        print("\n".join(options_menu))
+        try:
+            choice = int(input("\nSelect Option: "))
+            if choice not in range(1, len(options_menu) + 1):
                 raise ValueError("Invalid option")
             return choice
         except ValueError:
@@ -217,6 +235,32 @@ def print_get_twitch_url_menu():
         return twitch_url
     print("\n✖  Invalid Twitch URL! Please try again:\n")
     return print_get_twitch_url_menu()
+
+
+def get_latest_version():
+    try:
+        res = requests.get("https://api.github.com/repos/MacielG1/VodRecovery/releases/latest",  timeout=15)
+        if res.status_code == 200:
+            release_info = res.json()
+            return release_info["tag_name"]
+        else:
+            return None
+    except Exception:
+        return None
+    
+def check_for_updates():
+    latest_version = get_latest_version()
+    if latest_version:
+        if latest_version != Current_Version:
+            print(f"\n\033[34m\u2714 New version ({latest_version}) - Download at: https://github.com/MacielG1/VodRecovery/releases/latest\033[0m")
+            input("\nPress Enter to continue...")
+            return run_vod_recover()
+        else:
+            print("\033[32m\nVodRecovery is up to date!\033[0m")
+            input("\nPress Enter to continue...")
+            return run_vod_recover()
+    else:
+        print("\nCould not check for updates!")
 
 
 def read_config_file(config_file):
@@ -658,7 +702,7 @@ def website_vod_recover():
             print("\nComparing Twitchtracker duration with M3U8 duration...")
             twitchtracker_duration = int(parse_duration_twitchtracker(tracker_url))
             if twitchtracker_duration >= m3u8_duration + 10:
-                print(f"The duration from Twitchtracker exceeds the M3U8 duration by over 10 minutes. Consider checking Streamscharts for a split stream. URL: {modified_streamscharts_url}")
+                print(f"\nThe duration from Twitchtracker exceeds the M3U8 duration. Check Streamscharts for a potential split stream. URL: {modified_streamscharts_url}")
             return m3u8_source
     elif "sullygnome" in tracker_url:
         streamer, video_id = parse_sullygnome_url(tracker_url)
@@ -681,7 +725,7 @@ def website_vod_recover():
             print("\nComparing Sullygnome duration with M3U8 duration...")
             sullygnome_duration = int(parse_duration_sullygnome(tracker_url))
             if sullygnome_duration >= m3u8_duration + 10:
-                print("\n" + f"The duration from Sullygnome exceeds the M3U8 duration by over 10 minutes. Consider checking Streamscharts for a split stream. URL: {modified_streamscharts_url}")
+                print(f"\nThe duration from Sullygnome exceeds the M3U8 duration. Check Streamscharts for a potential split stream. URL: {modified_streamscharts_url}")
             return m3u8_source
     else:
         print("\n✖  Link not supported! Returning to main menu...")
@@ -1557,7 +1601,7 @@ def download_clips(directory, streamer_name, video_id):
             print(f"Failed to download.... {response.url}")
     
     print(f"\n\033[92m\u2713 Clips downloaded to {download_directory}\033[0m\n")
-        
+
 
 def download_m3u8_video_url(m3u8_link, output_filename):
     command = [
@@ -1568,8 +1612,8 @@ def download_m3u8_video_url(m3u8_link, output_filename):
         '-y',
         os.path.join(get_default_directory(), output_filename),
     ]
-    subprocess.run(command, shell=True, check=True)
-
+    subprocess.run(command, check=True)
+        
 
 def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, video_end_time):
     command = [
@@ -1583,7 +1627,7 @@ def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, 
         os.path.join(get_default_directory(), output_filename),
 
     ]
-    subprocess.run(command, shell=True, check=True)
+    subprocess.run(command, check=True)
 
 
 def download_m3u8_video_file(m3u8_file_path, output_filename):
@@ -1595,7 +1639,7 @@ def download_m3u8_video_file(m3u8_file_path, output_filename):
         # '-bsf:a', 'aac_adtstoasc',
         os.path.join(get_default_directory(), output_filename),
     ]
-    subprocess.run(command, shell=True, check=True)
+    subprocess.run(command, check=True)
 
 def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_time, video_end_time):
     command = [
@@ -1609,7 +1653,7 @@ def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_
         '-y',
         os.path.join(get_default_directory(), output_filename),
     ]
-    subprocess.run(command, shell=True, check=True)
+    subprocess.run(command, check=True)
 
 
 def get_VLC_Location():
@@ -1933,7 +1977,7 @@ def handle_twitch_clip(clip_url):
 
 
 def run_vod_recover():
-
+    
     print("\nWELCOME TO VOD RECOVERY!")
     menu = 0
 
@@ -2027,13 +2071,19 @@ def run_vod_recover():
             elif menu == 3:
                 continue
         elif menu == 5:
-            set_default_video_format()
+            options_choice = print_options_menu()
+            if options_choice == 1:
+                set_default_video_format()
+            elif options_choice == 2:
+                set_default_directory()
+            elif options_choice == 3:
+                check_for_updates()
+            elif options_choice == 4:
+                print_help()
+                input("Press Enter to continue...")
+            elif options_choice == 5:
+                continue
         elif menu == 6:
-            set_default_directory()
-        elif menu == 7:
-            print_help()
-            input("Press Enter to continue...")
-        elif menu == 8:
             print("\nExiting...\n")
             sys.exit()
         else:
