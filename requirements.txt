@@ -1,5 +1,0 @@
-grequests==0.7.0
-requests==2.31.0
-beautifulsoup4==4.12.3
-natsort==8.4.0
-seleniumbase==4.24.12
