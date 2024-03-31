@@ -1,4 +1,5 @@
 {
+    "CURRENT_VERSION": "1.2.0",
     "UNMUTE_VIDEO": true,
     "CHECK_SEGMENTS": true,
     "DOWNLOAD_CLIPS": false,
