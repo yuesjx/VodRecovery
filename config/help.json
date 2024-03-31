@@ -4,15 +4,13 @@
     "2) Clip Recovery": "Recovers all clips from past broadcasts.",
     "3) Download M3U8 File": "Downloads a M3U8 file as an MP4 or the selected format.",
     "4) Unmute & Check M3U8 Availability": "Check and Removesy Unavailable Segments in a M3U8 file.",
-    "5) Set Default Video Format": "Sets which video format to use for vods and clips downloaded.",
-    "6) Set Download Directory": "Sets the default location for the downloads.",
-    "7) Help": "Displays an explanation of each menu option",
-    "8) Exit": "Exits the application."
+    "5) Options": "Menu options for the application.",
+    "6) Exit": "Exits the application."
   },
   "VOD_MODE_MENU": {
     "1) Website Video Recovery": "Recovers videos by retrieving stream data from websites.",
     "2) Manual Video Recovery": "Recovers videos using manual input of stream information.",
-    "4) Bulk VOD Recovery from SullyGnome CSV Export": "Recovers all available videos based on a CSV file of streams exported from SullyGnome.",
+    "3) Bulk VOD Recovery from SullyGnome CSV Export": "Recovers all available videos based on a CSV file of streams exported from SullyGnome.",
     "4) Return": "Returns to main menu."
   },
   "CLIP_TYPE_MENU": {
@@ -48,6 +46,13 @@
     "2) From M3U8 File": "Downloads from a M3U8 file.",
     "3) From Twitch URL": "Downloads VODs or Highlights from a Twitch URL (Only if still available on Twitch).",
     "4) Return": "Returns to main menu."
+  },
+  "OPTIONS_MENU":{
+    "1) Set Default Video Format": "Sets which video format to use for vods and clips downloaded.",
+    "2) Set Download Directory": "Sets the default location for the downloads.",
+    "3) Check for Updates": "Checks for updates to the application.",
+    "4) Help": "Displays an explanation of each menu option",
+    "5) Return": "Returns to main menu."
   },
   "PLAYING_M3U8_FILE": {
     "1": "Download the video file using option 3 and play it with VLC or another player.",
