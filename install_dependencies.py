@@ -1,5 +1,18 @@
 import os
 import importlib
+import subprocess
+import sys
+
+
+def install_requirements():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    requirements_file = os.path.join(script_dir, 'lib', 'requirements.txt')
+    with open(requirements_file, encoding='utf-8') as f:
+        packages = f.read().splitlines()
+    for package in packages:
+        if not check_package(package):
+            subprocess.run([sys.executable, "-m", "pip", "install", package], check=True)
+
 
 def check_package(package_name):
     try:
@@ -8,16 +21,25 @@ def check_package(package_name):
     except ImportError:
         return False
 
-def install_requirements():
-    requirements_file = 'requirements.txt'
-    with open(requirements_file, encoding='utf-8') as f:
-        packages = f.read().splitlines()
-    for package in packages:
-        if not check_package(package):
-            print(f"Installing {package}...")
-            os.system(f'pip install {package}')
-        else:
-            print(f"{package} is already installed.")
 
-if __name__ == '__main__':
-    install_requirements()
+def update_pip():
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+    except Exception as e:
+        print(f"Error updating pip: {e}")
+
+
+if __name__ == "__main__":
+    try:
+        update_pip()
+        install_requirements()
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        install_ffmpeg_script = os.path.join(script_dir, 'lib', 'install_ffmpeg.py')
+        os.system(f'python {install_ffmpeg_script}')
+        
+        vod_recovery_script = os.path.join(script_dir, 'vod_recovery.py')
+        os.system(f'python {vod_recovery_script}')
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        input("\nPress Enter to continue...")
