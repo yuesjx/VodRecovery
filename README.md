@@ -5,11 +5,10 @@ This is a Fork of [VodRecovery](https://github.com/Shishkebaboo/VodRecovery) whi
 ## Installation and Setup
 
 1. Download and install [Python](https://www.python.org/downloads/) and when installing ensure to check the box that says "Add Python to environment variables"
-2. Download and install [FFmpeg](https://ffmpeg.org/download.html#get-packages)
-3. Download this repository with: `git clone https://github.com/MacielG1/VodRecovery` or by clicking the green "Code" button and selecting "Download ZIP"
-4. Navigate inside the downloaded folder
-5. Install the requirements by running the `install_dependencies.py` file or the command `pip install -r requirements.txt`
-6. Run the program by running the `vod_recovery.py` file or the command `python vod_recovery.py`
+2. Download this repository with: `git clone https://github.com/MacielG1/VodRecovery` or by clicking the green "Code" button and selecting "Download ZIP"
+3. Navigate inside the downloaded folder
+4. Install the requirements by running the `install_dependencies.py` file
+5. Run the program by running the `vod_recovery.py` file or the command `python vod_recovery.py`
 
 ## Core Features
 
@@ -33,10 +32,8 @@ This is the interactive menu:
 2) Clip Recovery
 3) Download VOD (default .mp4)
 4) Unmute & Check M3U8 Availability
-5) Set Default Video Format
-6) Set Download Directory
-7) Help
-8) Exit
+5) Options
+6) Exit
 ```
 
 ## Notes
