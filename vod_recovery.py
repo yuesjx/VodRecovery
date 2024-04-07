@@ -23,6 +23,7 @@ from packaging import version
 import ffmpeg_downloader as ffdl
 
 
+CURRENT_VERSION = "1.2.1"
 supported_formats = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
 
@@ -42,6 +43,11 @@ def get_default_video_format():
     if default_video_format in supported_formats:
         return default_video_format
     return ".mp4"
+
+
+def get_default_directory():
+    default_directory = read_config_by_key('settings', 'DEFAULT_DIRECTORY')
+    return os.path.expanduser(default_directory)
 
 
 def print_main_menu():
@@ -101,7 +107,7 @@ def print_video_recovery_menu():
 
 def print_clip_type_menu():
     clip_type_options = ["1) Recover All Clips from a VOD","2) Find Random Clips from a VOD",
-                         "3) Donwload Clip from Twitch URL", "4) Bulk Recover Clips from SullyGnome CSV Export", "5) Return"]
+                         "3) Download Clip from Twitch URL", "4) Bulk Recover Clips from SullyGnome CSV Export", "5) Return"]
     while True:
         print("\n".join(clip_type_options))
         try:
@@ -258,7 +264,7 @@ def get_latest_version():
     
 def check_for_updates():
     latest_version = version.parse(get_latest_version())
-    current_version = version.parse(get_current_version())
+    current_version = version.parse(CURRENT_VERSION)
     if latest_version and current_version:
         if latest_version > current_version:
             print(f"\n\033[34mNew version ({latest_version}) - Download at: https://github.com/MacielG1/VodRecovery/releases/latest\033[0m")
@@ -315,11 +321,6 @@ def write_m3u8_to_file(m3u8_link, destination_path):
 def read_csv_file(csv_file_path):
     with open(csv_file_path, "r", encoding="utf-8") as csv_file:
         return list(csv.reader(csv_file))
-
-
-def get_default_directory():
-    default_directory = read_config_by_key('settings', 'DEFAULT_DIRECTORY')
-    return os.path.expanduser(default_directory)
 
 
 def get_current_version():
@@ -1739,8 +1740,34 @@ def handle_vod_url_normal(m3u8_souce):
         print(f"\nDownloading Vod: {vod_filename}")
         download_m3u8_video_url(m3u8_souce, vod_filename)
 
-    formatted_elapsed = f"{time.time() - start:.2f}"
-    print(f"\n\033[92mVod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed} seconds\033[0m\n")
+    formatted_elapsed = str(timedelta(seconds=int(time.time() - start))).zfill(8)
+    print(f"\n\033[92mVod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed}\033[0m\n")
+
+
+from datetime import timedelta
+
+def handle_vod_url_trim(m3u8_source):
+
+    vod_start_time = get_time_input_HH_MM_SS("Enter start time (HH:MM:SS): ")
+    vod_end_time = get_time_input_HH_MM_SS("Enter end time (HH:MM:SS): ")
+
+    raw_start_time = vod_start_time.replace(":", "")
+    raw_end_time = vod_end_time.replace(":", "")
+ 
+    start = time.time()
+
+    is_file = os.path.isfile(m3u8_source)
+    if is_file:
+        vod_filename = parse_vod_filename(m3u8_source) + get_default_video_format()
+        download_m3u8_video_file_slice(m3u8_source, vod_filename, vod_start_time, vod_end_time)
+        if os.path.isfile(m3u8_source):
+            os.remove(m3u8_source)
+    else:
+        vod_filename = f"{parse_streamer_from_m3u8_link(m3u8_source)}_{parse_video_id_from_m3u8_link(m3u8_source)}_{raw_start_time}-{raw_end_time}{get_default_video_format()}"
+        download_m3u8_video_url_slice(m3u8_source, vod_filename, vod_start_time, vod_end_time)
+
+    formatted_elapsed = str(timedelta(seconds=int(time.time() - start))).zfill(8)
+    print(f"\n\033[92mVod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed}\033[0m\n")
 
 
 def get_time_input_HH_MM_SS(prompt):
@@ -1770,30 +1797,6 @@ def get_time_input_YYYY_MM_DD_HH_MM_SS(prompt):
             return time_input
         else:
             print("\nInvalid input format! Please enter the time in YYYY-MM-DD HH:MM:SS format.\n")
-
-
-def handle_vod_url_trim(m3u8_source):
-
-    vod_start_time = get_time_input_HH_MM_SS("Enter start time (HH:MM:SS): ")
-    vod_end_time = get_time_input_HH_MM_SS("Enter end time (HH:MM:SS): ")
-
-    raw_start_time = vod_start_time.replace(":", "")
-    raw_end_time = vod_end_time.replace(":", "")
- 
-    start = time.time()
-
-    is_file = os.path.isfile(m3u8_source)
-    if is_file:
-        vod_filename = parse_vod_filename(m3u8_source) + get_default_video_format()
-        download_m3u8_video_file_slice(m3u8_source, vod_filename, vod_start_time, vod_end_time)
-        if os.path.isfile(m3u8_source):
-            os.remove(m3u8_source)
-    else:
-        vod_filename = f"{parse_streamer_from_m3u8_link(m3u8_source)}_{parse_video_id_from_m3u8_link(m3u8_source)}_{raw_start_time}-{raw_end_time}{get_default_video_format()}"
-        download_m3u8_video_url_slice(m3u8_source, vod_filename, vod_start_time, vod_end_time)
-
-    formatted_elapsed = f"{time.time() - start:.2f}"
-    print(f"\n\033[92mVod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed} seconds\033[0m\n")
 
 
 def handle_download_menu(link):
@@ -1835,8 +1838,8 @@ def handle_file_download_menu(m3u8_file_path):
             output_filename = parse_vod_filename(m3u8_file_path) + get_default_video_format()
             download_m3u8_video_file(m3u8_file_path, output_filename)
 
-            formatted_elapsed = f"{time.time() - start:.2f}"
-            print(f"\n\033[92mVod downloaded to {os.path.join(get_default_directory(), output_filename)} in {formatted_elapsed} seconds\033[0m\n")
+            formatted_elapsed = str(timedelta(seconds=int(time.time() - start))).zfill(8)
+            print(f"\n\033[92mVod downloaded to {os.path.join(get_default_directory(), output_filename)} in {formatted_elapsed}\033[0m\n")
             break
         elif start_download == 2:
             vod_start_time = get_time_input_HH_MM_SS("Enter start time (HH:MM:SS): ")
@@ -1850,8 +1853,8 @@ def handle_file_download_menu(m3u8_file_path):
             start = time.time()
             download_m3u8_video_file_slice(m3u8_file_path, vod_filename, vod_start_time, vod_end_time)
     
-            formatted_elapsed = f"{time.time() - start:.2f}"
-            print(f"\n\033[92mVod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed} seconds\033[0m\n")
+            formatted_elapsed = str(timedelta(seconds=int(time.time() - start))).zfill(8)
+            print(f"\n\033[92mVod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed}\033[0m\n")
             break
         elif start_download == 3 and vlc_location:
             subprocess.Popen([vlc_location, m3u8_file_path.replace("/", "\\")])
@@ -2007,8 +2010,8 @@ def twitch_clip_downloader(clip_url, slug, streamer):
         with open(os.path.join(get_default_directory(), download_location), 'wb') as file:
             shutil.copyfileobj(response.raw, file)
 
-        formatted_elapsed = f"{time.time() - start:.2f}"
-        print(f"\n\033[92mClip downloaded to {download_location} in {formatted_elapsed} seconds\033[0m\n")
+        formatted_elapsed = str(timedelta(seconds=int(time.time() - start))).zfill(8)
+        print(f"\n\033[92mClip downloaded to {download_location} in {formatted_elapsed}\033[0m\n")
 
         input("Press Enter to continue...")
     except Exception:
