@@ -1,4 +1,4 @@
-# Welcome to VodRecovery
+# Welcome to Vod Recovery
 
 This is a Fork of [VodRecovery](https://github.com/Shishkebaboo/VodRecovery) which can be used to recover and download Twitch Vods, Highlights and Clips, containing some adjustments and improvements.
 
