@@ -11,7 +11,8 @@ def install_requirements():
         packages = f.read().splitlines()
     for package in packages:
         if not check_package(package):
-            subprocess.run([sys.executable, "-m", "pip", "install", package], check=True)
+            print(f"Installing {package}...")
+            subprocess.run([sys.executable, "-m", "pip", "install", package, "-q"], check=True)
 
 
 def check_package(package_name):
@@ -24,13 +25,14 @@ def check_package(package_name):
 
 def update_pip():
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip", "-q"])
     except Exception as e:
         print(f"Error updating pip: {e}")
 
 
 if __name__ == "__main__":
     try:
+        print("Installing dependencies...")
         update_pip()
         install_requirements()
         script_dir = os.path.dirname(os.path.abspath(__file__))
