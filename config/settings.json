@@ -1,8 +1,9 @@
 {
     "UNMUTE_VIDEO": true,
-    "CHECK_SEGMENTS": true,
-    "DOWNLOAD_CLIPS": false,
+    "CHECK_SEGMENTS": false,
+    "AUTO_DOWNLOAD_CLIPS": false,
     "REMOVE_LOG_FILE": true,
+    "ALWAYS_BEST_QUALITY": true,
     "DEFAULT_DIRECTORY": "~/Downloads/",
     "DEFAULT_VIDEO_FORMAT": ".mp4",
     "VLC_LOCATION": ""
