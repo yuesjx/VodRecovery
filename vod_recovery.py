@@ -24,7 +24,7 @@ import ffmpeg_downloader as ffdl
 import unicodedata
 
 
-CURRENT_VERSION = "1.2.2"
+CURRENT_VERSION = "1.2.3"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
 
@@ -213,7 +213,7 @@ def print_handle_m3u8_availability_menu():
 def print_options_menu():
 
     options_menu = [
-        f"1) Set Default Video Format \033[94m({get_default_video_format() or ".mp4"})\033[0m",
+        f"1) Set Default Video Format \033[94m({get_default_video_format() or '.mp4'})\033[0m",
         f"2) Set Download Directory \033[94m({get_default_directory() or '~/Downloads/'})\033[0m",
         "3) Check for Updates",
         "4) Open settings.json file",
