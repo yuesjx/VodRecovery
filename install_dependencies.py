@@ -17,6 +17,7 @@ def install_requirements():
             except subprocess.CalledProcessError:
                 # install latest version
                 print(f"\n\033[34mFailed to install {package}. Trying again...\033[0m")
+                print(f"Installing {package.split('==')[0]}...")
                 subprocess.run([sys.executable, "-m", "pip", "install", package.split('==')[0], "-q"], check=True)
 
 
