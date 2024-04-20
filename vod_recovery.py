@@ -1953,8 +1953,6 @@ def handle_download_menu(link, title = None):
             else:
                 subprocess.Popen([vlc_location, link])
         elif start_download == exit_option:
-            if os.path.isfile(link):
-                os.remove(link)
             return run_vod_recover()
         else:
             print("\n✖  Invalid option! Please Try Again.")
