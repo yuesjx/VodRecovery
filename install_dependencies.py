@@ -11,8 +11,13 @@ def install_requirements():
         packages = f.read().splitlines()
     for package in packages:
         if not check_package(package):
-            print(f"Installing {package}...")
-            subprocess.run([sys.executable, "-m", "pip", "install", package, "-q"], check=True)
+            try:
+                print(f"Installing {package}...")
+                subprocess.run([sys.executable, "-m", "pip", "install", package, "-q"], check=True)
+            except subprocess.CalledProcessError:
+                # install latest version
+                print(f"\n\033[34mFailed to install {package}. Trying again...\033[0m")
+                subprocess.run([sys.executable, "-m", "pip", "install", package.split('==')[0], "-q"], check=True)
 
 
 def check_package(package_name):
