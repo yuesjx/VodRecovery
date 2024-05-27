@@ -23,8 +23,7 @@ from packaging import version
 import ffmpeg_downloader as ffdl
 import unicodedata
 
-
-CURRENT_VERSION = "1.2.4"
+CURRENT_VERSION = "1.2.5"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
 
@@ -840,6 +839,8 @@ def get_vod_urls(streamer_name, video_id, start_timestamp):
     
     print("\nSearching for M3U8 URL...")
 
+
+
     try:
         for seconds in range(60):
             base_url = f"{streamer_name}_{video_id}_{int(calculate_epoch_timestamp(start_timestamp, seconds))}"
@@ -873,7 +874,7 @@ def get_vod_urls(streamer_name, video_id, start_timestamp):
             return response
         except Exception:
             return None
-    
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [executor.submit(fetch_status, url) for url in m3u8_link_list]
         for i in enumerate(concurrent.futures.as_completed(futures)):
@@ -891,6 +892,7 @@ def get_vod_urls(streamer_name, video_id, start_timestamp):
 
     
 def return_supported_qualities(m3u8_link):
+
     if m3u8_link is None:
         return None
     
@@ -969,7 +971,7 @@ def handle_cloudflare(sb):
                 src_attribute = iframe.get_attribute("src")
                 if src_attribute and "cloudflare" in src_attribute:
                     sb.driver.uc_switch_to_frame(iframe)
-                    sb.driver.uc_click("span.mark", reconnect_time=1)
+                    sb.driver.uc_click("span", reconnect_time=2)
                     break
         except Exception as e:
             pass 
@@ -1172,7 +1174,7 @@ def parse_datetime_streamscharts(streamscharts_url):
                 return stream_datetime, streamcharts_duration_in_minutes
         except Exception:
             pass
-    return None
+    return None, None
 
 
 def parse_datetime_twitchtracker(twitchtracker_url):
@@ -1235,7 +1237,7 @@ def parse_datetime_twitchtracker(twitchtracker_url):
                     return twitchtracker_datetime, twitchtracker_duration_in_minutes
         except Exception:
             pass
-    return None
+    return None, None
                     
 
 def parse_datetime_sullygnome(sullygnome_url):
@@ -1299,10 +1301,11 @@ def parse_datetime_sullygnome(sullygnome_url):
 
                 sullygnome_duration = bs.find_all('div', {'class': 'MiddleSubHeaderItemValue'})[7].text.split(",")
                 sullygnome_duration_in_minutes = parse_website_duration(sullygnome_duration)
+
                 return sullygnome_datetime, sullygnome_duration_in_minutes
         except Exception:
             pass
-    return None
+    return None, None
 
 
 def unmute_vod(m3u8_link):
@@ -1457,7 +1460,6 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
 
     if vod_age > 60:
         print("Video is older than 60 days. Chances of recovery are very slim.")
-    
     vod_url = None
     if timestamp:
         vod_url = return_supported_qualities(get_vod_urls(streamer_name, video_id, timestamp))
@@ -1472,14 +1474,14 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
         for website in alternate_websites:
             parsed_timestamp = None
             if "streamscharts" in website:
-                parsed_timestamp = parse_datetime_streamscharts(website)
+                parsed_timestamp, _ = parse_datetime_streamscharts(website)
             elif "twitchtracker" in website:
-                parsed_timestamp = parse_datetime_twitchtracker(website)
+                parsed_timestamp, _ = parse_datetime_twitchtracker(website)
             elif "sullygnome" in website:
                 # if timestamp contains a year that differs from current year, skip because sullygnome doesn't provide year
                 if timestamp and datetime.now().year != int(timestamp.split("-")[0]):
                     continue
-                parsed_timestamp = parse_datetime_sullygnome(website)
+                parsed_timestamp, _ = parse_datetime_sullygnome(website)
 
             if parsed_timestamp and parsed_timestamp != timestamp and parsed_timestamp not in all_timestamps:
                 all_timestamps.append(parsed_timestamp)
