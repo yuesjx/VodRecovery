@@ -22,7 +22,7 @@ from packaging import version
 import ffmpeg_downloader as ffdl
 import unicodedata
 
-CURRENT_VERSION = "1.2.7"
+CURRENT_VERSION = "1.2.8"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
 
@@ -1670,7 +1670,7 @@ def download_clips(directory, streamer_name, video_id):
 
 
 def is_m3u8_longer_than_24_hours(url):
-    cmd = ['ffprobe', '-protocol_whitelist', 'file,http,https,tcp,tls', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', url]
+    cmd = [get_ffprobe_path(), '-protocol_whitelist', 'file,http,https,tcp,tls', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', url]
     duration_seconds = float(subprocess.check_output(cmd))
     return duration_seconds > 24 * 60 * 60
 
@@ -1760,6 +1760,16 @@ def get_ffmpeg_path():
             return "ffmpeg"
     except Exception:
         sys.exit("FFmpeg not found! Please install FFmpeg correctly and try again.")
+
+
+def get_ffprobe_path():
+    try:     
+        if os.path.exists(ffdl.ffprobe_path):
+            return ffdl.ffprobe_path
+        elif subprocess.run(["ffprobe", "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True).returncode == 0:
+            return "ffprobe"
+    except Exception:
+        sys.exit("FFprobe not found! Please install FFmpeg correctly and try again.")
 
 
 def download_m3u8_video_url(m3u8_link, output_filename):
@@ -1922,7 +1932,7 @@ def handle_vod_url_trim(m3u8_source, title = None):
             os.remove(m3u8_source)
     else:
         if title:
-            vod_filename = sanitize_filename(title) + parse_streamer_and_video_id_from_m3u8_link(m3u8_source) + f" - {raw_start_time} - {raw_end_time}" + get_default_video_format()
+            vod_filename = f"{sanitize_filename(title)}{parse_streamer_and_video_id_from_m3u8_link(m3u8_source)} - {raw_start_time} - {raw_end_time}{get_default_video_format()}"
         else:
             vod_filename = f"{parse_streamer_from_m3u8_link(m3u8_source)}_{parse_video_id_from_m3u8_link(m3u8_source)} - {raw_start_time} - {raw_end_time}{get_default_video_format()}"
         download_m3u8_video_url_slice(m3u8_source, vod_filename, vod_start_time, vod_end_time)
@@ -2005,16 +2015,14 @@ def handle_file_download_menu(m3u8_file_path):
             vod_start_time = get_time_input_HH_MM_SS("Enter start time (HH:MM:SS): ")
             vod_end_time = get_time_input_HH_MM_SS("Enter end time (HH:MM:SS): ")
 
-            raw_start_time = vod_start_time.replace(":", "")
-            raw_end_time = vod_end_time.replace(":", "")
+            raw_start_time = vod_start_time.replace(":", ".")
+            raw_end_time = vod_end_time.replace(":", ".")
 
-            vod_filename = f"{parse_vod_filename(m3u8_file_path)}_{raw_start_time}-{raw_end_time}{get_default_video_format()}"
+            vod_filename = f"{parse_vod_filename(m3u8_file_path)} - {raw_start_time} - {raw_end_time}{get_default_video_format()}"
             
-            start = time()
             download_m3u8_video_file_slice(m3u8_file_path, vod_filename, vod_start_time, vod_end_time)
     
-            formatted_elapsed = str(timedelta(seconds=int(time() - start))).zfill(8)
-            print(f"\n\033[92m\u2713 Vod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed}\033[0m\n")
+            print(f"\n\033[92m\u2713 Vod downloaded to {os.path.join(get_default_directory(), vod_filename)}\033[0m\n")
             break
         elif start_download == 3 and vlc_location:
             subprocess.Popen([vlc_location, m3u8_file_path.replace("/", "\\")])
