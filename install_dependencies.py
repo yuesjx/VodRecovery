@@ -1,5 +1,5 @@
 import os
-import importlib
+from importlib import import_module
 import subprocess
 import sys
 
@@ -22,7 +22,7 @@ def install_requirements(requirements_path):
 
 def check_package(package_name):
     try:
-        importlib.import_module(package_name)
+        import_module(package_name)
         return True
     except ImportError:
         return False
@@ -41,6 +41,7 @@ if __name__ == "__main__":
         update_pip()
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
+        
         requirements_file = os.path.join(script_dir, 'lib', 'requirements.txt')
         install_ffmpeg_script = os.path.join(script_dir, 'lib', 'install_ffmpeg.py')
         vod_recovery_script = os.path.join(script_dir, 'vod_recovery.py')
@@ -52,3 +53,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"An error occurred: {e}")
         input("\nPress Enter to continue...")
+
