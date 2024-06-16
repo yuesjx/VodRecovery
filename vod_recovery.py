@@ -12,17 +12,20 @@ from shutil import rmtree, copyfileobj
 from datetime import datetime, timedelta
 from tkinter import filedialog
 from urllib.parse import urlparse
-import concurrent.futures
+from unicodedata import normalize
+from tempfile import NamedTemporaryFile
+import asyncio
 import grequests
+import aiohttp
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 from seleniumbase import SB
 import requests
 from packaging import version
 import ffmpeg_downloader as ffdl
-import unicodedata
 
-CURRENT_VERSION = "1.2.8"
+
+CURRENT_VERSION = "1.2.9"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
 
@@ -165,7 +168,7 @@ def print_clip_format_menu():
             choice = int(input("\nSelect Clip URL Format: "))
             if choice == 4:
                 return run_vod_recover()
-            elif choice not in range(1, len(clip_format_options) + 1):
+            if choice not in range(1, len(clip_format_options) + 1):
                 raise ValueError("Invalid option")
             else:
                 return str(choice)
@@ -242,8 +245,8 @@ def get_websites_tracker_url():
         tracker_url = input("Enter Twitchtracker/Streamscharts/Sullygnome url: ").strip()
         if re.match(r'^(https?:\/\/)?(www\.)?(twitchtracker\.com|streamscharts\.com|sullygnome\.com)\/.*', tracker_url):
             return tracker_url
-        else:
-            print("\n✖  Invalid URL! Please enter a URL from Twitchtracker, Streamscharts, or Sullygnome.\n")
+
+        print("\n✖  Invalid URL! Please enter a URL from Twitchtracker, Streamscharts, or Sullygnome.\n")
 
 
 def print_get_twitch_url_menu():
@@ -256,7 +259,7 @@ def print_get_twitch_url_menu():
 
 def get_twitch_or_tracker_url():
     while True:
-        url = input("Enter Twitchtracker/Streamscharts/Sullygnome or Twitch URL: ").strip()
+        url = input("Enter Twitchtracker/Streamscharts/Sullygnome/Twitch URL: ").strip()
         if re.match(r'^(https?:\/\/)?(www\.)?(twitchtracker\.com|streamscharts\.com|sullygnome\.com|twitch\.tv)\/.*', url):
             return url
 
@@ -314,7 +317,7 @@ def sanitize_filename(filename, restricted=False):
         return char
 
     if restricted:
-        filename = unicodedata.normalize('NFKC', filename)
+        filename = normalize('NFKC', filename)
     filename = re.sub(r'[0-9]+(?::[0-9]+)+', lambda m: m.group(0).replace(':', '_'), filename)
     result = ''.join(map(replace_insane, filename))
     result = re.sub(r'(\0.)(?:(?=\1)..)+', r'\1', result)
@@ -787,7 +790,7 @@ def website_vod_recover():
         m3u8_duration = return_m3u8_duration(m3u8_link)
 
         if source_duration and int(source_duration) >= m3u8_duration + 10:
-            print(f"\nThe duration from {website_name} exceeds the M3U8 duration by at least 10 seconds. This may indicate a split stream.")
+            print(f"The duration from {website_name} exceeds the M3U8 duration by at least 10 seconds. This may indicate a split stream.\n")
         return m3u8_source
 
     url = get_twitch_or_tracker_url()
@@ -818,60 +821,52 @@ def get_all_clip_urls(clip_format_dict, clip_format_list):
     return combined_clip_format_list
 
 
-def get_vod_urls(streamer_name, video_id, start_timestamp):
+async def fetch_status(session, url):
+    try:
+        async with session.head(url, timeout=30) as response:
+            if response.status == 200:
+                return url
+    except Exception:
+        return None
 
+
+async def get_vod_urls(streamer_name, video_id, start_timestamp):
     m3u8_link_list = []
     script_dir = get_script_directory()
     domains = read_text_file(os.path.join(script_dir, 'lib', 'domains.txt'))
     
     print("\nSearching for M3U8 URL...")
 
-    try:
-        for seconds in range(60):
-            base_url = f"{streamer_name}_{video_id}_{int(calculate_epoch_timestamp(start_timestamp, seconds))}"
-            hashed_base_url = str(hashlib.sha1(base_url.encode('utf-8')).hexdigest())[:20]
+    for seconds in range(60):
+        base_url = f"{streamer_name}_{video_id}_{int(calculate_epoch_timestamp(start_timestamp, seconds))}"
+        hashed_base_url = str(hashlib.sha1(base_url.encode('utf-8')).hexdigest())[:20]
 
-            for domain in domains:
-                if domain.strip(): 
-                    m3u8_link_list.append(f"{domain.strip()}{hashed_base_url}_{base_url}/chunked/index-dvr.m3u8")
-    except Exception:
-        return None
+        for domain in domains:
+            if domain.strip(): 
+                m3u8_link_list.append(f"{domain.strip()}{hashed_base_url}_{base_url}/chunked/index-dvr.m3u8")
 
     successful_url = None
     first_url_printed = False
     progress_message_printed = False
 
-    def fetch_status(url):
-        nonlocal successful_url, first_url_printed
-        if successful_url is not None:
-            return None
-        try:
-            response = requests.head(url, timeout=30)
-            if response.status_code == 200:
-                successful_url = response.url
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_status(session, url) for url in m3u8_link_list]
+        for index, task in enumerate(asyncio.as_completed(tasks)):
+            url = await task
+            if url:
+                successful_url = url
                 if not first_url_printed:
                     if progress_message_printed:
                         print()
                     first_url_printed = True
-                    print(f"\n\033[92m\u2713 Found URL: {successful_url}\033[0m") 
-
-            return response
-        except Exception:
-            return None
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(fetch_status, url) for url in m3u8_link_list]
-        for i in enumerate(concurrent.futures.as_completed(futures)):
-            if successful_url is not None:  # Stop if a successful URL has been found
+                    print(f"\n\033[92m\u2713 Found URL: {successful_url}\033[0m")
                 break
-            index, _ = i
             if not progress_message_printed:
                 progress_message_printed = True
             print(f"\rSearching {index + 1} out of {len(m3u8_link_list)} URLs", end='', flush=True)
-            
-    if successful_url is None:
+
+    if not successful_url:
         print("\nNo successful URL found!")
-        return None
     return successful_url
 
     
@@ -914,9 +909,9 @@ def get_user_resolution_choice(m3u8_link, valid_resolutions):
             quality = valid_resolutions[choice - 1]
             user_option = m3u8_link.replace("chunked", quality)
             return user_option
-        else:
-            print("\n✖  Invalid option! Please try again:\n")
-            return get_user_resolution_choice(m3u8_link, valid_resolutions)
+
+        print("\n✖  Invalid option! Please try again:\n")
+        return get_user_resolution_choice(m3u8_link, valid_resolutions)
     except ValueError:
         print("\n✖  Invalid option! Please try again:\n")
         return get_user_resolution_choice(m3u8_link, valid_resolutions)
@@ -987,7 +982,6 @@ def parse_duration_streamscharts(streamcharts_url):
             if response.status_code == 200:
                 bs = BeautifulSoup(response.content, 'html.parser')
                 return parse_streamscharts_duration_data(bs)
-
 
         # Method 3: Using Selenium 
         print("Opening Streamcharts with browser...")
@@ -1070,7 +1064,6 @@ def parse_duration_sullygnome(sullygnome_url):
             if response.status_code == 200:
                 bs = BeautifulSoup(response.content, 'html.parser')
                 return parse_sullygnome_duration_data(bs)
-
 
     # Method 3: Using Selenium 
         print("Opening Sullygnome with browser...")
@@ -1162,8 +1155,7 @@ def parse_datetime_twitchtracker(twitchtracker_url):
             if response.status_code == 200:
 
                 bs = BeautifulSoup(response.content, 'html.parser')
-                return parse_twitchtracker_datetime_data(bs)
-                
+                return parse_twitchtracker_datetime_data(bs)    
     
         # Method 3: Using Selenium     
         print("Opening Twitchtracker with browser...")
@@ -1273,7 +1265,7 @@ def mark_invalid_segments_in_playlist(m3u8_link):
     with open(vod_file_path, "r", encoding="utf-8") as f:
         lines = f.read().splitlines()
     print("Checking for invalid segments...")
-    segments = validate_playlist_segments(get_all_playlist_segments(m3u8_link))
+    segments = asyncio.run(validate_playlist_segments(get_all_playlist_segments(m3u8_link)))
     if not segments:
         if "/highlight" not in m3u8_link:
             print("No segments are valid. Cannot generate M3U8! Returning to main menu.")
@@ -1326,7 +1318,7 @@ def process_m3u8_configuration(m3u8_link, skip_check = False):
         os.remove(get_vod_filepath(parse_streamer_from_m3u8_link(m3u8_link), parse_video_id_from_m3u8_link(m3u8_link)))
     if check_segments:
         print("Checking valid segments...")
-        validate_playlist_segments(playlist_segments)
+        asyncio.run(validate_playlist_segments(playlist_segments))
     return m3u8_source
 
 
@@ -1355,32 +1347,25 @@ def get_all_playlist_segments(m3u8_link):
     return segment_list
 
 
-def validate_playlist_segments(segments):
+async def validate_playlist_segments(segments):
     valid_segments = []
     all_segments = [url.strip() for url in segments]
     available_segment_count = 0
 
-    def fetch_status(url):
-        nonlocal available_segment_count, valid_segments
-        try:
-            response = requests.head(url, timeout=30)
-            if response.status_code == 200:
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_status(session, url) for url in all_segments]
+        for index, task in enumerate(asyncio.as_completed(tasks)):
+            url = await task
+            if url:
                 available_segment_count += 1
-                valid_segments.append(response.url)
-            return response
-        except Exception:
-            return None
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(fetch_status, url) for url in all_segments]
-        for i in enumerate(concurrent.futures.as_completed(futures)):
-            index, _ = i
+                valid_segments.append(url)
             print(f"\rChecking segments {index + 1} / {len(all_segments)}", end="")
 
+    print()
     if available_segment_count == len(all_segments) or available_segment_count == 0:
-        print("\nAll Segments are Available")
+        print("All Segments are Available\n")
     elif available_segment_count < len(all_segments):
-        print(f"\n{available_segment_count} out of {len(all_segments)} Segments are Available. To recheck the segments select option 4 from the menu.")
+        print(f"{available_segment_count} out of {len(all_segments)} Segments are Available. To recheck the segments select option 4 from the menu.\n")
     return valid_segments
 
 
@@ -1391,12 +1376,11 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
         print("Video is older than 60 days. Chances of recovery are very slim.")
     vod_url = None
     if timestamp:
-        vod_url = return_supported_qualities(get_vod_urls(streamer_name, video_id, timestamp))
+        vod_url = return_supported_qualities(asyncio.run(get_vod_urls(streamer_name, video_id, timestamp)))
     if vod_url is None:
         alternate_websites = generate_website_links(streamer_name, video_id, tracker_url)
 
-        print("Unable to recover video from original url, trying alternate sources...")
-         
+        print("Unable to recover video! Trying alternate url sources...")
         all_timestamps = [timestamp]
 
         # check if any of the alternate websites have a different timestamp, if so try to recover the video
@@ -1414,10 +1398,8 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
 
             if parsed_timestamp and parsed_timestamp != timestamp and parsed_timestamp not in all_timestamps:
                 all_timestamps.append(parsed_timestamp)
-                vod_url = return_supported_qualities(get_vod_urls(streamer_name, video_id, parsed_timestamp))
+                vod_url = return_supported_qualities(asyncio.run(get_vod_urls(streamer_name, video_id, parsed_timestamp)))
                 if vod_url:
-                    print("\nSuccessfully recovered video from alternate source.")
-                    print(f"New URL: {vod_url}")
                     return vod_url
         if not vod_url:
             print("\033[91m \n✖  Unable to recover the video! \033[0m")
@@ -1434,8 +1416,8 @@ def bulk_vod_recovery():
     print()
     all_m3u8_links = []
     for timestamp, video_id in csv_file.items():
-        print("Recovering Video...", video_id)
-        m3u8_link = get_vod_urls(streamer_name.lower(), video_id, timestamp)
+        print("Recovering Video: ", video_id)
+        m3u8_link = asyncio.run(get_vod_urls(streamer_name.lower(), video_id, timestamp))
 
         if m3u8_link is not None:
             process_m3u8_configuration(m3u8_link)
@@ -1443,7 +1425,7 @@ def bulk_vod_recovery():
         else:
             print("No VODs found using the current domain list.")
     if all_m3u8_links:
-        print("All M3U8 Links:")
+        print("All M3U8 Links found:")
         for link in all_m3u8_links:
             print(f"\033[92m{link}\033[0m")
         
@@ -1571,7 +1553,17 @@ def random_clip_recovery(video_id, hours, minutes):
             break
 
 
-def bulk_clip_recovery():
+async def validate_clip(session, url, streamer_name, video_id):
+    try:
+        async with session.head(url, timeout=30) as response:
+            if response.status == 200:
+                write_text_file(response.url, get_log_filepath(streamer_name, video_id))
+                return response.url
+    except Exception:
+        return None
+
+
+async def bulk_clip_recovery():
     vod_counter, total_counter, valid_counter, iteration_counter = 0, 0, 0, 0
     streamer_name, csv_file_path = "", ""
 
@@ -1591,54 +1583,48 @@ def bulk_clip_recovery():
             csv_file_path = csv_file_path.replace('"', '')
     elif bulk_recovery_option == "3":
         return run_vod_recover()
+    
     clip_format = print_clip_format_menu().split(" ")
     stream_info_dict = parse_clip_csv_file(csv_file_path)
     
-    def validate_clip(url):
-        try:
-            response = requests.head(url, timeout=30)
-            if response.status_code == 200:
-                return url
-        except Exception:
-            return None
-    
-    for video_id, values in stream_info_dict.items():
-        vod_counter += 1
-        print(
-            f"\nProcessing Past Broadcast:\n"
-            f"Stream Date: {values[0].replace('-', ' ')}\n"
-            f"Vod ID: {video_id}\n"
-            f"Vod Number: {vod_counter} of {len(stream_info_dict)}\n")
-        original_vod_url_list = get_all_clip_urls(get_clip_format(video_id, values[1]), clip_format)
-        print("Searching...")
-        
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(validate_clip, url) for url in original_vod_url_list]
-            for future in concurrent.futures.as_completed(futures):
+    async with aiohttp.ClientSession() as session:
+        for video_id, values in stream_info_dict.items():
+            vod_counter += 1
+            print(
+                f"\nProcessing Past Broadcast:\n"
+                f"Stream Date: {values[0].replace('-', ' ')}\n"
+                f"Vod ID: {video_id}\n"
+                f"Vod Number: {vod_counter} of {len(stream_info_dict)}\n")
+            original_vod_url_list = get_all_clip_urls(get_clip_format(video_id, values[1]), clip_format)
+            print("Searching...")
+
+            tasks = [validate_clip(session, url, streamer_name, video_id) for url in original_vod_url_list]
+            for task in asyncio.as_completed(tasks):
                 total_counter += 1
                 iteration_counter += 1
                 print(f'\rSearching for clips... {iteration_counter} of {len(original_vod_url_list)}', end=" ", flush=True)
-                if future.result():
+                result = await task
+                if result:
                     valid_counter += 1
-                    write_text_file(future.result(), get_log_filepath(streamer_name, video_id))
         
-        print(f'\n\033[92m{valid_counter} Clip(s) Found\033[0m\n')
+            print(f'\n\033[92m{valid_counter} Clip(s) Found\033[0m\n')
 
-        if valid_counter != 0:
-            user_option = input("Do you want to download all clips recovered (Y/N)? ")
+            if valid_counter != 0:
+                user_option = input("Do you want to download all clips recovered (Y/N)? ")
 
-            if user_option.upper() == "Y":
-                download_clips(get_default_directory(), streamer_name, video_id)
-                os.remove(get_log_filepath(streamer_name, video_id))
-            else:
-                choice = input("\nWould you like to keep the log file containing links to the recovered clips (Y/N)? ")
-                if choice.upper() == "N":
+                if user_option.upper() == "Y":
+                    download_clips(get_default_directory(), streamer_name, video_id)
                     os.remove(get_log_filepath(streamer_name, video_id))
                 else:
-                    print("\nRecovered links saved to " + get_log_filepath(streamer_name, video_id))
-        else:
-            print("No clips found!... Moving on to next vod." + "\n")
-        total_counter, valid_counter, iteration_counter = 0, 0, 0
+                    choice = input("\nWould you like to keep the log file containing links to the recovered clips (Y/N)? ")
+                    if choice.upper() == "N":
+                        os.remove(get_log_filepath(streamer_name, video_id))
+                    else:
+                        print("\nRecovered links saved to " + get_log_filepath(streamer_name, video_id))
+            else:
+                print("No clips found!... Moving on to next vod." + "\n")
+            total_counter, valid_counter, iteration_counter = 0, 0, 0
+    
     input("\nPress Enter to continue...")
 
 
@@ -1690,7 +1676,6 @@ def parse_m3u8_url(m3u8_url):
         if line.endswith('.ts'):
             segment_url = base_url + '/' + line
             segments.append(segment_url)
-
     return segments
 
 
@@ -1709,8 +1694,19 @@ def time_to_timedelta(time_str):
     return timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
 
-def download_segments(m3u8, start_time, end_time, output_file):
-    if m3u8.startswith('http://') or m3u8.startswith('https://'):
+async def download_segment_async(session, segment):
+    try:
+        async with session.get(segment, timeout=30) as response:
+            if response.status == 200:
+                return await response.read()
+    except Exception as err:
+        print(f"Error downloading segment {segment}: {err}")
+    return None
+
+
+async def download_m3u8_segments_async(m3u8, start_time, end_time, output_file):
+    # function used when the m3u8 file is longer than 24 hours
+    if m3u8.startswith(('http://', 'https://')):
         segments = parse_m3u8_url(m3u8)
     else:
         segments = parse_m3u8_file(m3u8)
@@ -1718,46 +1714,57 @@ def download_segments(m3u8, start_time, end_time, output_file):
     start_time_seconds = start_time.total_seconds()
     end_time_seconds = end_time.total_seconds()
 
-    segments_content = []
-    for segment_url in segments:
-        try:
-            segment_number = int(segment_url.split('/')[-1].split('.')[0])
-        except ValueError:
-            continue
+    def is_segment_in_range(segment_url):
+        segment_number = re.search(r'(\d+)\.', segment_url.split('/')[-1])
+        if segment_number is None:
+            return False
 
+        segment_number = int(segment_number.group(1))
         segment_start_time = segment_number * 10  # Each segment is 10 seconds
         segment_end_time = segment_start_time + 10
-        if start_time_seconds <= segment_start_time < end_time_seconds or \
-           start_time_seconds < segment_end_time <= end_time_seconds or \
-           (segment_start_time <= start_time_seconds and segment_end_time >= end_time_seconds):
-            segments_content.append(download_segment(segment_url))
+
+        return max(start_time_seconds, segment_start_time) < min(end_time_seconds, segment_end_time)
+
+    segments_in_range = [segment for segment in segments if is_segment_in_range(segment)]
+    total_segments = len(segments_in_range)
+    completed_segments = 0
+
+    print()
+    segments_content = []
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [download_segment_async(session, segment) for segment in segments_in_range]
+        for task in asyncio.as_completed(tasks):
+            segment_content = await task
+            if segment_content:
+                segments_content.append(segment_content)
+            completed_segments += 1
+            print(f"Progress: {completed_segments}/{total_segments} segments downloaded", end='\r')
 
     if not segments_content:
         print("No segments found within the specified time range.")
         return
 
-    # Write all segments content to a temporary file
-    temp_file = "temp_segments.ts"
-    with open(temp_file, 'wb') as f:
+    with NamedTemporaryFile(suffix=".ts", delete=False) as temp_file:
         for segment_content in segments_content:
-            f.write(segment_content)
+            temp_file.write(segment_content)
 
-    # Concatenate all segments into the output file using FFmpeg
-    command = [get_ffmpeg_path(), '-i', temp_file, '-c', 'copy', output_file]
+    command = [get_ffmpeg_path(), '-i', temp_file.name, '-c', 'copy', output_file]
     try:
-        subprocess.run(command, shell=True, check=True)
-    except Exception:
-        subprocess.run(' '.join(command), shell=True, check=True)
-
-    os.remove(temp_file)
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as err:
+        print(f"Error: {err}")
+    finally:
+        os.remove(temp_file.name)
 
 
 def get_ffmpeg_path():
     try:
         if os.path.exists(ffdl.ffmpeg_path):
             return ffdl.ffmpeg_path
-        elif subprocess.run(["ffmpeg", "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True).returncode == 0:
+        if subprocess.run(["ffmpeg", "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True).returncode == 0:
             return "ffmpeg"
+        raise Exception
     except Exception:
         sys.exit("FFmpeg not found! Please install FFmpeg correctly and try again.")
 
@@ -1794,7 +1801,7 @@ def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, 
     if is_longer_than_24h:
         start_time = time_to_timedelta(video_start_time)
         end_time = time_to_timedelta(video_end_time)
-        return download_segments(m3u8_link,  start_time, end_time, os.path.join(get_default_directory(), output_filename))
+        return asyncio.run(download_m3u8_segments_async(m3u8_link,  start_time, end_time, os.path.join(get_default_directory(), output_filename)))
     
     command = [
         get_ffmpeg_path(),
@@ -1834,7 +1841,7 @@ def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_
     if is_longer_than_24h:
         start_time = time_to_timedelta(video_start_time)
         end_time = time_to_timedelta(video_end_time)
-        return download_segments(m3u8_file_path,  start_time, end_time, os.path.join(get_default_directory(), output_filename))
+        return asyncio.run(download_m3u8_segments_async(m3u8_file_path,  start_time, end_time, os.path.join(get_default_directory(), output_filename)))
     
     command = [
         get_ffmpeg_path(),
@@ -2051,10 +2058,10 @@ def extract_id_from_url(url: str):
     match = re.search(pattern, url)
     if match:
         return match.group(1)
-    else:
-       print("\n✖  Invalid Twitch VOD or Highlight URL! Please Try Again.\n")
-       url = print_get_twitch_url_menu()
-       return extract_id_from_url(url)
+
+    print("\n✖  Invalid Twitch VOD or Highlight URL! Please Try Again.\n")
+    url = print_get_twitch_url_menu()
+    return extract_id_from_url(url)
 
 
 def extract_slug_and_streamer_from_clip_url(url):
@@ -2063,8 +2070,7 @@ def extract_slug_and_streamer_from_clip_url(url):
         match = re.search(pattern, url)
         if match:
             return match.group(1), match.group(2)
-        else:
-            sys.exit("\n✖  Invalid Twitch Clip URL! Please Try Again.\n")
+        sys.exit("\n✖  Invalid Twitch Clip URL! Please Try Again.\n")
     except Exception:
         sys.exit("\n✖  Invalid Twitch Clip URL! Please Try Again.\n")     
 
@@ -2231,7 +2237,7 @@ def run_vod_recover():
                 clip_url = print_get_twitch_url_menu()
                 handle_twitch_clip(clip_url)
             elif clip_type == 4:
-                bulk_clip_recovery()
+                asyncio.run(bulk_clip_recovery())
             elif clip_type == 5:
                 continue
         elif menu == 3:
