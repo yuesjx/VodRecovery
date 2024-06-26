@@ -37,7 +37,7 @@
     "4) Return": "Returns to main menu."
   },
   "UNMUTE_AND_CHECK_M3U8_MENU": {
-    "1) Check if M3U8 file is muted": "Checks if the M3U8 file is muted.",
+    "1) Check if M3U8 file has muted segments": "Checks if the M3U8 file has muted segments.",
     "2) Unmute & Remove invalid segments": "Unmutes the M3U8 file and removes any invalid segments.",
     "3) Return": "Returns to main menu."
   },
