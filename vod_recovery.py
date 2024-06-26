@@ -195,7 +195,7 @@ def print_download_type_menu():
 
 def print_handle_m3u8_availability_menu():
     handle_m3u8_availability_options = [
-        "1) Check if M3U8 file is muted",
+        "1) Check if M3U8 file has muted segments",
         "2) Unmute & Remove invalid segments",
         "3) Return"
     ]
@@ -259,6 +259,7 @@ def print_get_twitch_url_menu():
 def get_twitch_or_tracker_url():
     while True:
         url = input("Enter Twitchtracker/Streamscharts/Sullygnome/Twitch URL: ").strip()
+
         if re.match(r'^(https?:\/\/)?(www\.)?(twitchtracker\.com|streamscharts\.com|sullygnome\.com|twitch\.tv)\/.*', url):
             return url
 
@@ -591,7 +592,7 @@ def get_m3u8_file_dialog():
 def parse_vod_filename(m3u8_video_filename):
     base = os.path.basename(m3u8_video_filename)
     streamer_name, video_id = base.split('.m3u8', 1)[0].rsplit('_', 1)
-    return f"{streamer_name}_{video_id}"
+    return streamer_name, video_id
 
 
 def parse_vod_filename_with_Brackets(m3u8_video_filename):
@@ -789,7 +790,7 @@ def handle_vod_recover(url, url_parser, datetime_parser, website_name):
 
     if source_duration and int(source_duration) >= m3u8_duration + 10:
         print(f"The duration from {website_name} exceeds the M3U8 duration by at least 10 seconds. This may indicate a split stream.\n")
-    return m3u8_source
+    return m3u8_source, stream_datetime
 
 
 def website_vod_recover():
@@ -1441,7 +1442,7 @@ def clip_recover(streamer, video_id, duration):
 
     for response in grequests.imap(rs, size=100):
         iteration_counter += 1
-        print(f'\rSearching for clips..... {iteration_counter} of {len(full_url_list)}', end=" ", flush=True)
+        print(f'\rSearching for clips... {iteration_counter} of {len(full_url_list)}', end=" ", flush=True)
         if response.status_code == 200:
             valid_counter += 1
             valid_url_list.append(response.url)
@@ -1846,7 +1847,6 @@ def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_
         '-ss', video_start_time,
         '-to', video_end_time,
         '-i', m3u8_file_path,
-
         '-c', 'copy',
         # '-c:a', 'aac',
         '-y',
@@ -1892,32 +1892,72 @@ def get_VLC_Location():
         return None
 
 
-def handle_vod_url_normal(m3u8_source, title=None):
-
+def handle_vod_url_normal(m3u8_source, title=None, stream_date=None):
     start = time()
     is_file = os.path.isfile(m3u8_source)
+   
+
     if is_file:
-        if title:
-            vod_filename = sanitize_filename(title) + parse_vod_filename_with_Brackets(m3u8_source) + get_default_video_format()
-        else:
-            vod_filename = parse_vod_filename(m3u8_source) + get_default_video_format()
+        vod_filename = get_filename_for_file_source(m3u8_source, title=title, stream_date=stream_date)
         print(f"\nDownloading Vod: {vod_filename}")
+        
         download_m3u8_video_file(m3u8_source, vod_filename)
         os.remove(m3u8_source)
     else:
-        if title:
-            vod_filename = sanitize_filename(title) + parse_streamer_and_video_id_from_m3u8_link(m3u8_source) + get_default_video_format()
-        else:
-            vod_filename = f"{parse_streamer_from_m3u8_link(m3u8_source)}_{parse_video_id_from_m3u8_link(m3u8_source)}{get_default_video_format()}"
+        vod_filename = get_filename_for_url_source(m3u8_source, title=title, stream_date=stream_date)
         print(f"\nDownloading Vod: {vod_filename}")
+
         download_m3u8_video_url(m3u8_source, vod_filename)
 
     formatted_elapsed = str(timedelta(seconds=int(time() - start))).zfill(8)
     print(f"\n\033[92m\u2713 Vod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed}\033[0m\n")
 
 
-def handle_vod_url_trim(m3u8_source, title=None):
+def format_date(date_string):
+    try:
+        return datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
+    except ValueError:
+        return None
 
+
+def get_filename_for_file_source(m3u8_source, title, stream_date):
+    streamer_name, video_id = parse_vod_filename(m3u8_source)
+    formatted_date = format_date(stream_date) if stream_date else None
+    
+    filename_parts = [streamer_name]
+    
+    if formatted_date:
+        filename_parts.append(formatted_date)
+        
+    if title:
+        filename_parts.append(sanitize_filename(title))
+    
+    filename_parts.append(f"[{video_id}]")
+    filename = " - ".join(filename_parts) + get_default_video_format()
+    
+    return filename
+
+
+def get_filename_for_url_source(m3u8_source, title, stream_date):
+    streamer = parse_streamer_from_m3u8_link(m3u8_source)
+    vod_id = parse_video_id_from_m3u8_link(m3u8_source)
+    formatted_date = format_date(stream_date) if stream_date else None
+    
+    filename_parts = [streamer]
+    
+    if formatted_date:
+        filename_parts.append(formatted_date)
+        
+    if title:
+        filename_parts.append(sanitize_filename(title))
+    
+    filename_parts.append(f"[{vod_id}]")
+    filename = " - ".join(filename_parts) + get_default_video_format()
+
+    return filename
+
+
+def handle_vod_url_trim(m3u8_source, title=None, stream_date=None):
     vod_start_time = get_time_input_HH_MM_SS("Enter start time (HH:MM:SS): ")
     vod_end_time = get_time_input_HH_MM_SS("Enter end time (HH:MM:SS): ")
 
@@ -1926,21 +1966,57 @@ def handle_vod_url_trim(m3u8_source, title=None):
 
     is_file = os.path.isfile(m3u8_source)
     if is_file:
-        if title:
-            vod_filename = sanitize_filename(title) + parse_vod_filename_with_Brackets(m3u8_source) + get_default_video_format()
-        else:
-            vod_filename = parse_vod_filename(m3u8_source) + get_default_video_format()
+        vod_filename = get_filename_for_file_trim(m3u8_source, title, stream_date, raw_start_time, raw_end_time)
         download_m3u8_video_file_slice(m3u8_source, vod_filename, vod_start_time, vod_end_time)
+
         if os.path.isfile(m3u8_source):
             os.remove(m3u8_source)
     else:
-        if title:
-            vod_filename = f"{sanitize_filename(title)}{parse_streamer_and_video_id_from_m3u8_link(m3u8_source)} - {raw_start_time} - {raw_end_time}{get_default_video_format()}"
-        else:
-            vod_filename = f"{parse_streamer_from_m3u8_link(m3u8_source)}_{parse_video_id_from_m3u8_link(m3u8_source)} - {raw_start_time} - {raw_end_time}{get_default_video_format()}"
+        vod_filename = get_filename_for_url_trim(m3u8_source, title, stream_date, raw_start_time, raw_end_time)
         download_m3u8_video_url_slice(m3u8_source, vod_filename, vod_start_time, vod_end_time)
 
     print(f"\n\033[92m\u2713 Vod downloaded to {os.path.join(get_default_directory(), vod_filename)}\033[0m\n")
+
+
+def get_filename_for_file_trim(m3u8_source, title, stream_date, raw_start_time, raw_end_time):
+    streamer_name, video_id = parse_vod_filename(m3u8_source)
+    formatted_date = format_date(stream_date) if stream_date else None
+    
+    filename_parts = [streamer_name]
+    
+    if formatted_date:
+        filename_parts.append(formatted_date)
+        
+    if title:
+        filename_parts.append(sanitize_filename(title))
+    
+    filename_parts.append(f"[{video_id}]")
+    filename_parts.extend([raw_start_time, raw_end_time])
+    
+    filename = " - ".join(filename_parts) + get_default_video_format()
+
+    return filename
+
+
+def get_filename_for_url_trim(m3u8_source, title, stream_date, raw_start_time, raw_end_time):
+    streamer = parse_streamer_from_m3u8_link(m3u8_source)
+    vod_id = parse_video_id_from_m3u8_link(m3u8_source)
+    formatted_date = format_date(stream_date) if stream_date else None
+    
+    filename_parts = [streamer]
+    
+    if formatted_date:
+        filename_parts.append(formatted_date)
+        
+    if title:
+        filename_parts.append(sanitize_filename(title))
+    
+    filename_parts.append(f"[{vod_id}]")
+    filename_parts.extend([raw_start_time, raw_end_time])
+    
+    filename = " - ".join(filename_parts) + get_default_video_format()
+    
+    return filename
 
 
 def get_time_input_HH_MM_SS(prompt):
@@ -1948,44 +2024,42 @@ def get_time_input_HH_MM_SS(prompt):
         time_input = input(prompt).strip().replace("'", "").replace('"', '')
         if re.match(r'^(\d+):([0-5]\d):([0-5]\d)$', time_input):
             return time_input
-        else:
-            print("\nInvalid input format! Please enter the time in HH:MM:SS format.\n")
+
+        print("\nInvalid input format! Please enter the time in HH:MM:SS format.\n")
 
 
 def get_time_input_HH_MM(prompt):
     while True:
         time_input = input(prompt).strip().replace("'", "").replace('"', '')
 
-        # Check if the input follows the HH:MM format
         if re.match(r'^(\d+):([0-5]\d)$', time_input):
             return time_input
-        else:
-            print("\nInvalid input format! Please enter the time in HH:MM format.\n")
+
+        print("\nInvalid input format! Please enter the time in HH:MM format.\n")
 
 
 def get_time_input_YYYY_MM_DD_HH_MM_SS(prompt):
     while True:
         time_input = input(prompt).strip().replace("'", "").replace('"', '')
 
-        # Check if the input follows the YYYY-MM-DD HH:MM:SS format
         if re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', time_input):
             return time_input
-        else:
-            print("\nInvalid input format! Please enter the time in YYYY-MM-DD HH:MM:SS format.\n")
+
+        print("\nInvalid input format! Please enter the time in YYYY-MM-DD HH:MM:SS format.\n")
 
 
-def handle_download_menu(link, title=None):
+def handle_download_menu(link, title=None, stream_datetime=None):
     vlc_location = get_VLC_Location()
     exit_option = 3 if not vlc_location else 4
 
     while True:
         start_download = print_confirm_download_menu()
         if start_download == 1:
-            handle_vod_url_normal(link, title)
+            handle_vod_url_normal(link, title, stream_datetime)
             input("Press Enter to continue...")
             return run_vod_recover()
         elif start_download == 2:
-            handle_vod_url_trim(link, title)
+            handle_vod_url_trim(link, title, stream_datetime)
             input("Press Enter to continue...")
             return run_vod_recover()
         elif start_download == 3 and vlc_location:
@@ -1999,7 +2073,30 @@ def handle_download_menu(link, title=None):
             print("\n✖  Invalid option! Please Try Again.")
 
 
+def get_datetime_from_m3u8(m3u8_file):
+    try:
+        date = None
+        total_seconds = 0
+        date_pattern = re.compile(r'#ID3-EQUIV-TDTG:(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})')
+
+        with open(m3u8_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                date_match = date_pattern.match(line)
+                if date_match:
+                    date = date_match.group(1)
+                if line.startswith('#EXT-X-TWITCH-TOTAL-SECS:'):
+                    total_seconds = int(float(line.split(':')[-1].strip()))
+        if date is not None:
+            date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S")
+            adjusted_date = date - timedelta(seconds=total_seconds)
+            adjusted_date_str = adjusted_date.strftime("%Y-%m-%d")
+            return adjusted_date_str
+    except Exception:
+        pass
+
+
 def handle_file_download_menu(m3u8_file_path):
+    stream_date = get_datetime_from_m3u8(m3u8_file_path)
 
     vlc_location = get_VLC_Location()
     exit_option = 3 if not vlc_location else 4
@@ -2008,7 +2105,14 @@ def handle_file_download_menu(m3u8_file_path):
         start_download = print_confirm_download_menu()
         if start_download == 1:
             start = time()
-            output_filename = parse_vod_filename(m3u8_file_path) + get_default_video_format()
+
+            streamer_name, video_id = parse_vod_filename(m3u8_file_path)
+
+            if stream_date:
+                output_filename = f"{streamer_name} - {stream_date} - [{video_id}]{get_default_video_format()}"
+            else:
+                output_filename = f"{streamer_name} - [{video_id}]{get_default_video_format()}"
+
             download_m3u8_video_file(m3u8_file_path, output_filename)
 
             formatted_elapsed = str(timedelta(seconds=int(time() - start))).zfill(8)
@@ -2021,7 +2125,11 @@ def handle_file_download_menu(m3u8_file_path):
             raw_start_time = vod_start_time.replace(":", ".")
             raw_end_time = vod_end_time.replace(":", ".")
 
-            vod_filename = f"{parse_vod_filename(m3u8_file_path)} - {raw_start_time} - {raw_end_time}{get_default_video_format()}"
+            streamer_name, video_id = parse_vod_filename(m3u8_file_path)
+            if stream_date:
+                vod_filename = f"{streamer_name} - {stream_date} - [{video_id}] - {raw_start_time} - {raw_end_time}{get_default_video_format()}"
+            else:
+                vod_filename = f"{streamer_name} - [{video_id}] - {raw_start_time} - {raw_end_time}{get_default_video_format()}"
 
             download_m3u8_video_file_slice(m3u8_file_path, vod_filename, vod_start_time, vod_end_time)
 
@@ -2037,7 +2145,7 @@ def handle_file_download_menu(m3u8_file_path):
 
 def print_confirm_download_menu():
     vlc_location = get_VLC_Location()
-    menu_options = ["1) Start Downloading", "2) Specify Start and End time"]
+    menu_options = ["1) Start Downloading", "2) Specify Start & End times"]
     if vlc_location:
         menu_options.append("3) Play with VLC")
     menu_options.append(f"{3 if not vlc_location else 4}) Return")
@@ -2093,8 +2201,8 @@ def get_vod_or_highlight_url(vod_id):
         vod_data = data['data']['video']
 
         if data is None or vod_data is None:
-            return None, None
-
+            return None, None, None
+        
         current_url = urlparse(vod_data['seekPreviewsURL'])
 
         domain = current_url.netloc
@@ -2120,24 +2228,30 @@ def get_vod_or_highlight_url(vod_id):
         if url is not None:
             response = requests.get(url, timeout=20)
             if response.status_code == 200:
-                return url, vod_data["title"]
-    return response.url, None
+                return url, vod_data["title"], vod_data["createdAt"]
+    return response.url, None, None
 
 
 def twitch_recover(link=None):
     url = link if link else print_get_twitch_url_menu()
     vod_id = extract_id_from_url(url)
-    url, title = get_vod_or_highlight_url(vod_id)
+    url, title, stream_datetime = get_vod_or_highlight_url(vod_id)
 
     if url is None:
         print("\n✖  Unable to find it! Try using one of the other websites.\n")
         input("Press Enter to continue...")
         return run_vod_recover()
+    
+    try:
+        format_datetime = datetime.strptime(stream_datetime, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        format_datetime = None
+    
     m3u8_url = return_supported_qualities(url)
     print(f"\n\033[92m\u2713 Found URL: {m3u8_url}\033[0m")
 
     m3u8_source = process_m3u8_configuration(m3u8_url, skip_check=True)
-    return handle_download_menu(m3u8_source, title)
+    return handle_download_menu(m3u8_source, title=title, stream_datetime=format_datetime)
 
 
 def get_twitch_clip(clip_slug):
@@ -2180,6 +2294,7 @@ def twitch_clip_downloader(clip_url, slug, streamer):
             raise Exception('Unable to download clip!')
         download_location = os.path.join(get_default_directory(), f"{streamer}-{slug}{get_default_video_format()}")
         start = time()
+
         with open(os.path.join(get_default_directory(), download_location), 'wb') as file:
             copyfileobj(response.raw, file)
 
@@ -2208,8 +2323,8 @@ def run_vod_recover():
         if menu == 1:
             vod_mode = print_video_mode_menu()
             if vod_mode == 1:
-                link = website_vod_recover()
-                handle_download_menu(link)
+                link, stream_datetime = website_vod_recover()
+                handle_download_menu(link, stream_datetime=stream_datetime)
             elif vod_mode == 2:
                 manual_vod_recover()
             elif vod_mode == 3:
