@@ -47,8 +47,8 @@ if __name__ == "__main__":
         vod_recovery_script = os.path.join(script_dir, 'vod_recovery.py')
 
         install_requirements(requirements_file)
-        os.system(f'python {install_ffmpeg_script}')
-        os.system(f'python {vod_recovery_script}')
+        os.system(f'python "{install_ffmpeg_script}"')
+        os.system(f'python "{vod_recovery_script}"')
 
     except Exception as e:
         print(f"An error occurred: {e}")
