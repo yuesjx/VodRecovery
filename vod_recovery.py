@@ -24,7 +24,7 @@ from packaging import version
 import ffmpeg_downloader as ffdl
 
 
-CURRENT_VERSION = "1.2.10"
+CURRENT_VERSION = "1.2.11"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
 
@@ -871,6 +871,8 @@ async def get_vod_urls(streamer_name, video_id, start_timestamp):
     return successful_url
 
 
+
+
 def return_supported_qualities(m3u8_link):
 
     if m3u8_link is None:
@@ -946,7 +948,7 @@ def parse_website_duration(duration_string):
 
 def handle_cloudflare(sb):
     try:
-        sb.uc_gui_handle_cf()
+        sb.uc_gui_click_captcha()
     except Exception:
         pass
     finally:
@@ -979,9 +981,9 @@ def parse_duration_streamscharts(streamscharts_url):
 
         # Method 3: Using Selenium
         print("Opening Streamcharts with browser...")
-        with SB(uc=True, rtf=True, headless=False) as sb:
+        with SB(uc=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(streamscharts_url, reconnect_time=2)
+            sb.uc_open_with_reconnect(streamscharts_url, reconnect_time=2)
             handle_cloudflare(sb)
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
             return parse_streamscharts_duration_data(bs)
@@ -1019,9 +1021,9 @@ def parse_duration_twitchtracker(twitchtracker_url, try_alternative=True):
 
         # Method 3: Using Selenium
         print("Opening Twitchtracker with browser...")
-        with SB(uc=True, headless=True) as sb:
+        with SB(uc=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(twitchtracker_url, reconnect_time=3)
+            sb.uc_open_with_reconnect(twitchtracker_url, reconnect_time=2)
             handle_cloudflare(sb)
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
             return parse_twitchtracker_duration_data(bs)
@@ -1060,9 +1062,9 @@ def parse_duration_sullygnome(sullygnome_url):
 
     # Method 3: Using Selenium
         print("Opening Sullygnome with browser...")
-        with SB(uc=True, headless=True) as sb:
+        with SB(uc=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(sullygnome_url, reconnect_time=3)
+            sb.uc_open_with_reconnect(sullygnome_url, reconnect_time=2)
             handle_cloudflare(sb)
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
             return parse_sullygnome_duration_data(bs)
@@ -1110,9 +1112,9 @@ def parse_datetime_streamscharts(streamscharts_url):
     # Method 3: Using Selenium
         print("Opening Streamscharts with browser...")
        
-        with SB(uc=True, rtf=True, headless=False) as sb:
+        with SB(uc=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(streamscharts_url, reconnect_time=2)
+            sb.uc_open_with_reconnect(streamscharts_url, reconnect_time=2)
             handle_cloudflare(sb)
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
 
@@ -1154,9 +1156,9 @@ def parse_datetime_twitchtracker(twitchtracker_url):
 
         # Method 3: Using Selenium
         print("Opening Twitchtracker with browser...")
-        with SB(uc=True, headless=True) as sb:
+        with SB(uc=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(twitchtracker_url, reconnect_time=3)
+            sb.uc_open_with_reconnect(twitchtracker_url, reconnect_time=2)
             handle_cloudflare(sb)
 
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
@@ -1212,9 +1214,9 @@ def parse_datetime_sullygnome(sullygnome_url):
 
         # Method 3: Using Selenium
         print("Opening Sullygnome with browser...")
-        with SB(uc=True, headless=True) as sb:
+        with SB(uc=True) as sb:
 
-            sb.driver.uc_open_with_reconnect(sullygnome_url, reconnect_time=3)
+            sb.uc_open_with_reconnect(sullygnome_url, reconnect_time=2)
             handle_cloudflare(sb)
             bs = BeautifulSoup(sb.driver.page_source, 'html.parser')
             return parse_sullygnome_datetime_data(bs)
