@@ -24,7 +24,7 @@ from packaging import version
 import ffmpeg_downloader as ffdl
 
 
-CURRENT_VERSION = "1.2.12"
+CURRENT_VERSION = "1.2.13"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
 
@@ -948,7 +948,7 @@ def parse_website_duration(duration_string):
 
 def handle_cloudflare(sb):
     try:
-        sb.uc_gui_click_captcha()
+        sb.uc_gui_handle_captcha()
     except Exception:
         pass
     finally:
