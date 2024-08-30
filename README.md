@@ -1,14 +1,13 @@
 # Welcome to Vod Recovery
 
-This Fork of [VodRecovery](https://github.com/Shishkebaboo/VodRecovery) is used to recover and download Twitch VODs, highlights, and clips, including various adjustments and improvements.
+This Fork of VodRecovery is used to recover and download Twitch VODs, highlights, and clips, including various adjustments and improvements.
 
-## Installation and Setup
+## Installation
 
 1. Install [Python](https://www.python.org/downloads/), during installation check the box labeled "Add Python to environment variables"
 2. Download the app by clicking [here](https://github.com/MacielG1/VodRecovery/archive/refs/heads/main.zip) or with the command `git clone https://github.com/MacielG1/VodRecovery`
-3. Navigate inside the downloaded folder
-4. Install the dependencies by running the `install_dependencies.py` file
-5. Run the program by running the `vod_recovery.py` file or one of the shortcuts
+3. Inside the downloaded folder run the file: `install_dependencies.py`
+4. Start the program by running the file `vod_recovery.py` or one of the shortcuts
 
 ## Core Features
 
@@ -27,17 +26,17 @@ This is the interactive menu:
 ```
 1) VOD Recovery
 2) Clip Recovery
-3) Download VOD (default .mp4)
+3) Download VOD (default mp4)
 4) Unmute & Check M3U8 Availability
 5) Options
 6) Exit
 ```
 
-## Notes
-
-- Original Repo: [VodRecovery](https://github.com/Shishkebaboo/VodRecovery) by Shishkebaboo
-- Ensure your Video requests comply with [Twitch's Video Retention Policy](https://help.twitch.tv/s/article/video-on-demand).
-
 ## Latest Release
 
 https://github.com/MacielG1/VodRecovery/releases/latest
+
+## Notes
+
+- Original Repo: [VodRecovery](https://github.com/Shishkebaboo/VodRecovery) by Shishkebaboo
+- How Twitch Handles [VOD Storage](https://help.twitch.tv/s/article/video-on-demand#enabling)
