@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 from tkinter import filedialog
 from urllib.parse import urlparse
 from unicodedata import normalize
-from tempfile import NamedTemporaryFile
 import asyncio
 import grequests
 import aiohttp
@@ -24,7 +23,7 @@ from packaging import version
 import ffmpeg_downloader as ffdl
 
 
-CURRENT_VERSION = "1.3.0"
+CURRENT_VERSION = "1.3.1"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
 
@@ -615,7 +614,7 @@ def set_default_directory():
 
 
 def set_default_downloader():
-    # Choose between yt-dlp and ffmpeg
+    # Choose between ffmpeg and yt-dlp
     print("\nSelect the default downloader")
     DOWNLOADERS = ["ffmpeg", "yt-dlp"]
     for i, downloader_option in enumerate(DOWNLOADERS, start=1):
@@ -835,7 +834,7 @@ def manual_vod_recover():
         else:
             print("\n✖  No video ID! Please try again:\n")
 
-    timestamp = get_time_input_YYYY_MM_DD_HH_MM_SS("Enter VOD Datetime (YYYY-MM-DD HH:MM:SS): ")
+    timestamp = get_time_input_YYYY_MM_DD_HH_MM_SS("Enter VOD Datetime YYYY-MM-DD HH:MM:SS (24-hour format, UTC): ")
 
     m3u8_link = vod_recover(streamer_name, video_id, timestamp)
     if m3u8_link is None:
@@ -1486,7 +1485,7 @@ def vod_recover(streamer_name, video_id, timestamp, tracker_url=None):
                 vod_url = return_supported_qualities(asyncio.run(get_vod_urls(streamer_name, video_id, parsed_timestamp)))
                 if vod_url:
                     return vod_url
-        if not parsed_timestamp:
+        if len(all_timestamps) == 1:
             print("\033[91m \n✖  Unable to get the datetime, try inputting the datetime manually, using the manual recovery option. \033[0m")
             input("\nPress Enter to continue...")
             run_vod_recover()
@@ -1743,120 +1742,6 @@ def download_clips(directory, streamer_name, video_id):
     print(f"\n\033[92m\u2713 Clips downloaded to {download_directory}\033[0m")
 
 
-def is_m3u8_longer_than_24_hours(url):
-    cmd = [
-        get_ffprobe_path(),
-        "-protocol_whitelist",
-        "file,http,https,tcp,tls",
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
-        url,
-    ]
-    duration_seconds = float(subprocess.check_output(cmd))
-    return duration_seconds > 24 * 60 * 60
-
-
-def download_segment(segment_url):
-    response = requests.get(segment_url, stream=True, timeout=30)
-    return response.content
-
-
-def parse_m3u8_url(m3u8_url):
-    response = requests.get(m3u8_url, timeout=30)
-    base_url = m3u8_url.rsplit("/", 1)[0]
-
-    segments = []
-    for line in response.text.split("\n"):
-        line = line.strip()
-        if line.endswith(".ts"):
-            segment_url = base_url + "/" + line
-            segments.append(segment_url)
-    return segments
-
-
-def parse_m3u8_file(m3u8_file):
-    segments = []
-    with open(m3u8_file, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith("https://"):
-                segments.append(line)
-    return segments
-
-
-def time_to_timedelta(time_str):
-    hours, minutes, seconds = map(int, time_str.split(":"))
-    return timedelta(hours=hours, minutes=minutes, seconds=seconds)
-
-
-async def download_segment_async(session, segment):
-    try:
-        async with session.get(segment, timeout=30) as response:
-            if response.status == 200:
-                return await response.read()
-    except Exception as err:
-        print(f"Error downloading segment {segment}: {err}")
-    return None
-
-
-async def download_m3u8_segments_async(m3u8, start_time, end_time, output_file):
-    # function used when the m3u8 file is longer than 24 hours
-    if m3u8.startswith(("http://", "https://")):
-        segments = parse_m3u8_url(m3u8)
-    else:
-        segments = parse_m3u8_file(m3u8)
-
-    start_time_seconds = start_time.total_seconds()
-    end_time_seconds = end_time.total_seconds()
-
-    def is_segment_in_range(segment_url):
-        segment_number = re.search(r"(\d+)\.", segment_url.split("/")[-1])
-        if segment_number is None:
-            return False
-
-        segment_number = int(segment_number.group(1))
-        segment_start_time = segment_number * 10  # Each segment is 10 seconds
-        segment_end_time = segment_start_time + 10
-
-        return max(start_time_seconds, segment_start_time) < min(end_time_seconds, segment_end_time)
-
-    segments_in_range = [segment for segment in segments if is_segment_in_range(segment)]
-    total_segments = len(segments_in_range)
-    completed_segments = 0
-
-    print()
-    segments_content = []
-
-    async with aiohttp.ClientSession() as session:
-        tasks = [download_segment_async(session, segment) for segment in segments_in_range]
-        for task in asyncio.as_completed(tasks):
-            segment_content = await task
-            if segment_content:
-                segments_content.append(segment_content)
-            completed_segments += 1
-            print(f"Progress: {completed_segments}/{total_segments} segments downloaded", end="\r")
-
-    if not segments_content:
-        print("No segments found within the specified time range.")
-        return
-
-    with NamedTemporaryFile(suffix=".ts", delete=False) as temp_file:
-        for segment_content in segments_content:
-            temp_file.write(segment_content)
-
-    command = [get_ffmpeg_path(), "-i", temp_file.name, "-c", "copy", output_file]
-    try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as err:
-        print(f"Error: {err}")
-    finally:
-        os.remove(temp_file.name)
-
-
 def get_ffmpeg_path():
     try:
         if os.path.exists(ffdl.ffmpeg_path):
@@ -1901,10 +1786,14 @@ def download_m3u8_video_url(m3u8_link, output_filename):
         command = [
             get_ffmpeg_path(),
             "-i", m3u8_link,
+            "-hide_banner",
             "-c", "copy",
             # '-bsf:a', 'aac_adtstoasc',
-            "-y", os.path.join(get_default_directory(), output_filename),
+            "-y", os.path.join(get_default_directory(), output_filename)
         ]
+
+        print("\n" + " ".join(command) + "\n")
+
     else:
         command = [
             "yt-dlp",
@@ -1927,35 +1816,25 @@ def download_m3u8_video_url(m3u8_link, output_filename):
 
 
 def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, video_end_time):
-    is_longer_than_24h = is_m3u8_longer_than_24_hours(m3u8_link)
-    if is_longer_than_24h:
-        start_time = time_to_timedelta(video_start_time)
-        end_time = time_to_timedelta(video_end_time)
-        return asyncio.run(download_m3u8_segments_async(m3u8_link, start_time, end_time, os.path.join(get_default_directory(), output_filename)))
 
     downloader = get_default_downloader()
 
-    if downloader == "ffmpeg":
-        command = [
-            get_ffmpeg_path(),
-            "-i", m3u8_link,
-            "-ss", video_start_time,
-            "-to", video_end_time,
-            "-c", "copy",
-            # '-bsf:a', 'aac_adtstoasc',
-            "-y", os.path.join(get_default_directory(), output_filename),
-        ]
-    else:
-        command = [
-            "yt-dlp",
-            m3u8_link,
-            "-o", os.path.join(get_default_directory(), output_filename),
-            "--downloader", "ffmpeg",  # using ffmpeg, because yt-dlp doesn't support trimming before downloading
-            "--downloader-args", f"ffmpeg_i:-ss {video_start_time} -to {video_end_time}",
-        ]
-        custom_options = get_yt_dlp_custom_options()
-        if custom_options:
-            command.extend(custom_options)
+    if downloader == "yt-dlp":
+        print("Using ffmpeg, because yt-dlp doesn't natively support trimming before downloading\n")
+
+    command = [
+        get_ffmpeg_path(),
+        "-protocol_whitelist", "file,http,https,tcp,tls",
+        "-hide_banner",
+        "-ss", video_start_time,
+        "-to", video_end_time, 
+        "-i", m3u8_link,
+        "-c", "copy",
+        "-y", os.path.join(get_default_directory(), output_filename),
+    ]
+
+    print("\n" + " ".join(command) + "\n")
+
     try:
         subprocess.run(command, shell=True, check=True)
         return True
@@ -1974,11 +1853,16 @@ def download_m3u8_video_file(m3u8_file_path, output_filename):
         command = [
             get_ffmpeg_path(),
             "-protocol_whitelist", "file,http,https,tcp,tls",
+            "-hide_banner",
+            "-ignore_unknown",
             "-i", m3u8_file_path,
             "-c", "copy",
             # '-bsf:a', 'aac_adtstoasc',
-            os.path.join(get_default_directory(), output_filename),
+            os.path.join(get_default_directory(), output_filename)
         ]
+
+        print("\n" + " ".join(command) + "\n")
+
     else:
         m3u8_file_path = f"file:\\\\{m3u8_file_path}"
         command = [
@@ -2002,38 +1886,29 @@ def download_m3u8_video_file(m3u8_file_path, output_filename):
 
 
 def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_time, video_end_time):
-    # Ensure the file exists before proceeding
+    
     if not os.path.exists(m3u8_file_path):
         print(f"Error: The m3u8 file does not exist at {m3u8_file_path}")
         return False
 
-    is_longer_than_24h = is_m3u8_longer_than_24_hours(m3u8_file_path)
-    if is_longer_than_24h:
-        start_time = time_to_timedelta(video_start_time)
-        end_time = time_to_timedelta(video_end_time)
-        return asyncio.run(
-            download_m3u8_segments_async(
-                m3u8_file_path,
-                start_time,
-                end_time,
-                os.path.join(get_default_directory(), output_filename),
-            )
-        )
-
     downloader = get_default_downloader()
 
     if downloader == "yt-dlp":
-        print("Using ffmpeg, because yt-dlp doesn't support trimming before downloading\n")
+        print("Using ffmpeg, because yt-dlp doesn't natively support trimming before downloading\n")
 
     command = [
         get_ffmpeg_path(),
         "-protocol_whitelist", "file,http,https,tcp,tls",
-        "-i", m3u8_file_path, 
+        "-hide_banner",
+        "-ignore_unknown",
         "-ss", video_start_time,
-        "-to", video_end_time,
+        "-to", video_end_time, 
+        "-i", m3u8_file_path,
         "-c", "copy",
         "-y", os.path.join(get_default_directory(), output_filename),
     ]
+
+    print("\n" + " ".join(command) + "\n")
 
     try:
         subprocess.run(command, shell=True, check=True)
@@ -2211,7 +2086,6 @@ def get_filename_for_url_trim(m3u8_source, title, stream_date, raw_start_time, r
 
     filename_parts.append(f"[{vod_id}]")
     filename_parts.extend([raw_start_time, raw_end_time])
-
     filename = " - ".join(filename_parts) + get_default_video_format()
 
     return filename
@@ -2268,7 +2142,7 @@ def handle_download_menu(link, title=None, stream_datetime=None):
         elif start_download == exit_option:
             return run_vod_recover()
         else:
-            print("\n✖  Invalid option! Please Try Again.")
+            print("\n✖  Invalid option! Please Try Again.\n")
 
 
 def get_datetime_from_m3u8(m3u8_file):
@@ -2656,3 +2530,5 @@ if __name__ == "__main__":
     except Exception as e:
         print("An error occurred:", e)
         input("Press Enter to exit.")
+
+
