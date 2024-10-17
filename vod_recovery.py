@@ -1814,6 +1814,12 @@ def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, 
 def download_m3u8_video_file(m3u8_file_path, output_filename):
     downloader = get_default_downloader()
 
+ if os.name != 'nt':
+        if not output_filename.startswith("'"):
+            output_filename = "'" + output_filename
+        if not output_filename.endswith("'"):
+            output_filename += "'"
+
     if downloader == "ffmpeg":
         command = [
             get_ffmpeg_path(),
