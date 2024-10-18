@@ -7,7 +7,7 @@ import re
 import subprocess
 import tkinter as tk
 import sys
-from time import time, sleep
+from time import sleep
 from shutil import rmtree, copyfileobj
 from datetime import datetime, timedelta
 from tkinter import filedialog
@@ -21,11 +21,15 @@ from seleniumbase import SB
 import requests
 from packaging import version
 import ffmpeg_downloader as ffdl
+from tqdm import tqdm
+from ffmpeg_progress_yield import FfmpegProgress
 
 
-CURRENT_VERSION = "1.3.2"
+CURRENT_VERSION = "1.3.3"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 
+if sys.platform == 'win32':
+	asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 def read_config_by_key(config_file, key):
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -50,6 +54,7 @@ def get_default_directory():
 
     if not os.path.exists(default_directory):
         default_directory = "~/Downloads/"
+        os.makedirs(default_directory)
 
     if os.name == "nt" and default_directory:
         default_directory = default_directory.replace("/", "\\")
@@ -271,6 +276,21 @@ def print_get_m3u8_link_menu():
     return print_get_m3u8_link_menu()
 
 
+def quote_filename(filename):
+    if not filename.startswith("'") and not filename.endswith("'"):
+        filename = filename.replace("'", "'\"'\"'")
+        filename = f"'{filename}'"
+    return filename
+
+
+def ask_to_redownload(output_path):
+    while True:
+        choice = input(f"\nFile already exists at {output_path}. Do you want to redownload it? (Y/N): ").strip().lower()
+        if choice in ['y', 'n']:
+            return choice == 'y'
+        print("Invalid input! Please enter 'Y' for Yes or 'N' for No.")
+
+
 def get_websites_tracker_url():
     while True:
         tracker_url = input("Enter Twitchtracker/Streamscharts/Sullygnome url: ").strip()
@@ -298,16 +318,21 @@ def get_twitch_or_tracker_url():
         print("\n✖  Invalid URL! Please enter a URL from Twitchtracker, Streamscharts, Sullygnome, or Twitch.\n")
 
 
-def get_latest_version():
-    try:
-        res = requests.get("https://api.github.com/repos/MacielG1/VodRecovery/releases/latest", timeout=30)
-        if res.status_code == 200:
-            release_info = res.json()
-            return release_info["tag_name"]
-        else:
-            return None
-    except Exception:
-        return None
+def get_latest_version(retries=3):
+    for attempt in range(retries):
+        try:
+            res = requests.get("https://api.github.com/repos/MacielG1/VodRecovery/releases/latest", timeout=30)
+            if res.status_code == 200:
+                release_info = res.json()
+                return release_info["tag_name"]
+            else:
+                return None
+        except Exception:
+            if attempt < retries - 1: 
+                sleep(3)  
+                continue 
+            else:
+                return None
 
 
 def check_for_updates():
@@ -422,7 +447,7 @@ def write_m3u8_to_file(m3u8_link, destination_path, max_retries=5):
     attempt = 0
     while attempt < max_retries:
         try:
-            response = requests.get(m3u8_link, timeout=30)
+            response = requests.get(m3u8_link, timeout=10)
             response.raise_for_status()
 
             with open(destination_path, "w", encoding="utf-8") as m3u8_file:
@@ -432,8 +457,7 @@ def write_m3u8_to_file(m3u8_link, destination_path, max_retries=5):
 
         except Exception:
             attempt += 1
-            sleep(3)
-
+            sleep(1)
     raise Exception(f"Failed to write M3U8 after {max_retries} attempts.")
 
 
@@ -474,7 +498,6 @@ def return_user_agent():
 def calculate_epoch_timestamp(timestamp, seconds):
     try:
         epoch_timestamp = ((datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S") + timedelta(seconds=seconds)) - datetime(1970, 1, 1)).total_seconds()
-        
         return epoch_timestamp
     except ValueError:
         return None
@@ -488,7 +511,7 @@ def calculate_days_since_broadcast(start_timestamp):
 
 
 def is_video_muted(m3u8_link):
-    response = requests.get(m3u8_link, timeout=30).text
+    response = requests.get(m3u8_link, timeout=10).text
     return bool("unmuted" in response)
 
 
@@ -935,8 +958,9 @@ async def get_vod_urls(streamer_name, video_id, start_timestamp):
 
     async with aiohttp.ClientSession() as session:
         tasks = [fetch_status(session, url) for url in m3u8_link_list]
-        
-        for index, task in enumerate(asyncio.as_completed(tasks), 1):
+        task_objects = [asyncio.create_task(task) for task in tasks]
+
+        for index, task in enumerate(asyncio.as_completed(task_objects), 1):
             url = await task
             
             print(f"\rSearching {index}/{len(m3u8_link_list)} URLs", end="", flush=True)
@@ -944,7 +968,9 @@ async def get_vod_urls(streamer_name, video_id, start_timestamp):
             if url:
                 successful_url = url
                 print("\n" if progress_printed else "\n\n")
-                print(f"\033[92m\u2713 Found URL: {successful_url}\033[0m")
+                print(f"\033[92m\u2713 Found URL: {successful_url}\033[0m\n")
+                for task_obj in task_objects:
+                    task_obj.cancel()
                 break
 
     return successful_url
@@ -1262,7 +1288,9 @@ def parse_datetime_sullygnome(sullygnome_url):
 
 def unmute_vod(m3u8_link):
     video_filepath = get_vod_filepath(parse_streamer_from_m3u8_link(m3u8_link), parse_video_id_from_m3u8_link(m3u8_link))
-    write_m3u8_to_file(m3u8_link, video_filepath)
+    
+    if not os.path.exists(video_filepath):
+        write_m3u8_to_file(m3u8_link, video_filepath)
     
     with open(video_filepath, "r+", encoding="utf-8") as video_file:
         file_contents = video_file.readlines()
@@ -1339,7 +1367,6 @@ def process_m3u8_configuration(m3u8_link, skip_check=False):
     playlist_segments = get_all_playlist_segments(m3u8_link)
 
     check_segments = read_config_by_key("settings", "CHECK_SEGMENTS") and not skip_check
-    print()
 
     m3u8_source = None
     if is_video_muted(m3u8_link):
@@ -1359,7 +1386,7 @@ def process_m3u8_configuration(m3u8_link, skip_check=False):
 def get_all_playlist_segments(m3u8_link):
     video_file_path = get_vod_filepath(parse_streamer_from_m3u8_link(m3u8_link), parse_video_id_from_m3u8_link(m3u8_link))
     write_m3u8_to_file(m3u8_link, video_file_path)
-    
+
     segment_list = []
     base_link = m3u8_link.replace("index-dvr.m3u8", "")
     counter = 0
@@ -1382,7 +1409,6 @@ def get_all_playlist_segments(m3u8_link):
                 counter += 1
         
         video_file.truncate()
-    
     return segment_list
 
 
@@ -1734,23 +1760,90 @@ def get_yt_dlp_path():
             sys.exit("yt-dlp not installed! Please install yt-dlp and try again.")
 
 
+def get_m3u8_duration(m3u8_link):
+    command = [
+        get_ffprobe_path(),
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        m3u8_link
+    ]
+
+    try:
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+
+        if result.returncode != 0:
+            return None
+
+        duration = result.stdout.strip()
+        if duration:
+            return float(duration)
+
+    except Exception:
+        return None
+
+
+def use_progress_bar(command, output_filename, total_duration):
+    try:
+        ff = FfmpegProgress(command)
+        with tqdm(total=100, position=0, desc=output_filename, leave=None, colour="green", unit="%", bar_format="{l_bar}{bar}| {percentage:.1f}/100% [{elapsed}]{postfix}") as pbar:
+            for progress in ff.run_command_with_progress():
+                pbar.update(progress - pbar.n)  # Update with the exact progress value
+                
+                if total_duration is not None:
+                    total_duration_seconds = total_duration
+                    current_duration_seconds = (progress / 100) * total_duration_seconds
+                    current_duration_str = str(timedelta(seconds=int(current_duration_seconds)))
+                    total_duration_str = str(timedelta(seconds=int(total_duration_seconds)))
+                    pbar.set_postfix_str(f"{current_duration_str}/{total_duration_str}")
+
+                # if ff.stderr:
+                #     for line in ff.stderr.splitlines():
+                #         if "error" in line.lower():
+                #             print(line)
+            pbar.close()
+        return True
+    except Exception as e:
+        print(f"Error: {str(e).strip()}")
+        raise Exception
+
+
+def handle_file_already_exists(output_path):
+    if os.path.exists(output_path):
+        if not ask_to_redownload(output_path):
+            print("\n\033[94m\u2713 Skipping download!\033[0m\n")
+            input("Press Enter to continue...")
+            return run_vod_recover()
+        
+
+def handle_retry_command(command):
+    try:
+        retry_command = ' '.join(f'"{part}"' if ' ' in part else part for part in command)
+        print("Retrying command: " + retry_command)
+        subprocess.run(retry_command, shell=True, check=True)
+        return True
+    except Exception:
+        return False
+
+
 def download_m3u8_video_url(m3u8_link, output_filename):
-    output_path = os.path.join(get_default_directory(), output_filename)
+    if os.name != 'nt':
+        output_filename = quote_filename(output_filename)
+
+    output_path = os.path.normpath(os.path.join(get_default_directory(), output_filename))
+    handle_file_already_exists(output_path)
 
     downloader = get_default_downloader()
 
     if downloader == "ffmpeg":
         command = [
-            get_ffmpeg_path(),
-            "-i", m3u8_link,
+            get_ffmpeg_path(), 
+            "-i", m3u8_link, 
             "-hide_banner",
-            "-c", "copy",
-            # '-bsf:a', 'aac_adtstoasc',
-            "-y", os.path.join(get_default_directory(), output_filename)
+            "-c", "copy", 
+            "-f", get_default_video_format().lstrip("."),
+            "-y", output_path
         ]
-
-        print("\n" + " ".join(command) + "\n")
-
     else:
         command = [
             "yt-dlp",
@@ -1761,18 +1854,25 @@ def download_m3u8_video_url(m3u8_link, output_filename):
         if custom_options:
             command.extend(custom_options)
 
+    print("\nCommand: " + " ".join(command) + "\n")
+
     try:
-        subprocess.run(command, shell=True, check=True)
+        if downloader == "ffmpeg":
+            total_duration = get_m3u8_duration(m3u8_link)
+            use_progress_bar(command, output_filename, total_duration)
+        else:
+            subprocess.run(command, shell=True, check=True)
         return True
     except Exception:
-        try:
-            subprocess.run(" ".join(command), shell=True, check=True)
-            return True
-        except Exception:
-            return False
+        handle_retry_command(command)
 
 
 def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, video_end_time):
+    if os.name != 'nt':
+        output_filename = quote_filename(output_filename)
+
+    output_path = os.path.normpath(os.path.join(get_default_directory(), output_filename))
+    handle_file_already_exists(output_path)
 
     downloader = get_default_downloader()
 
@@ -1785,33 +1885,41 @@ def download_m3u8_video_url_slice(m3u8_link, output_filename, video_start_time, 
             "-to", video_end_time, 
             "-i", m3u8_link,
             "-c", "copy",
-            "-y", os.path.join(get_default_directory(), output_filename),
+            "-f", get_default_video_format().lstrip("."),
+            "-y", output_path,
         ]
     elif downloader == "yt-dlp":
         command = [
             get_yt_dlp_path(),
             m3u8_link,
-            "-o", os.path.join(get_default_directory(), output_filename),
+            "-o", output_path,
             "--download-sections", f"*{video_start_time}-{video_end_time}",
         ]
         custom_options = get_yt_dlp_custom_options()
         if custom_options:
             command.extend(custom_options)
 
-    print("\n" + " ".join(command) + "\n")
+    print("\nCommand: " + " ".join(command) + "\n")
 
     try:
-        subprocess.run(command, shell=True, check=True)
+        if downloader == "ffmpeg":
+            total_duration = get_m3u8_duration(m3u8_link)
+            use_progress_bar(command, output_filename, total_duration)
+
+        else:
+            subprocess.run(command, shell=True, check=True)
         return True
     except Exception:
-        try:
-            subprocess.run(" ".join(command), shell=True, check=True)
-            return True
-        except Exception:
-            return False
+        handle_retry_command(command)
 
 
-def download_m3u8_video_file(m3u8_file_path, output_filename):
+def download_m3u8_video_file(m3u8_file_path, output_filename):    
+    if os.name != 'nt':
+        output_filename = quote_filename(output_filename)
+
+    output_path = os.path.normpath(os.path.join(get_default_directory(), output_filename))
+    handle_file_already_exists(output_path)
+
     downloader = get_default_downloader()
 
  if os.name != 'nt':
@@ -1828,8 +1936,8 @@ def download_m3u8_video_file(m3u8_file_path, output_filename):
             "-ignore_unknown",
             "-i", m3u8_file_path,
             "-c", "copy",
-            # '-bsf:a', 'aac_adtstoasc',
-            os.path.join(get_default_directory(), output_filename)
+            "-f", get_default_video_format().lstrip("."),
+            "-y", output_path,
         ]
 
     elif downloader == "yt-dlp":
@@ -1841,26 +1949,33 @@ def download_m3u8_video_file(m3u8_file_path, output_filename):
             "yt-dlp",
             "--enable-file-urls",
             m3u8_file_path,
-            "-o", os.path.join(get_default_directory(), output_filename),
+            "-o", output_path,
         ]
         custom_options = get_yt_dlp_custom_options()
         if custom_options:
             command.extend(custom_options)
 
-    print("\n" + " ".join(command) + "\n")
+    print("\nCommand: " + " ".join(command) + "\n")
+
     try:
-        subprocess.run(command, shell=True, check=True)
+        if downloader == "ffmpeg":
+            total_duration = get_m3u8_duration(m3u8_file_path)
+            use_progress_bar(command, output_filename, total_duration)
+
+        else:
+            subprocess.run(command, shell=True, check=True)
         return True
     except Exception:
-        try:
-            subprocess.run(" ".join(command), shell=True, check=True)
-            return True
-        except Exception:
-            return False
+        handle_retry_command(command)
 
 
-def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_time, video_end_time):
-    
+def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_time, video_end_time):    
+    if os.name != 'nt':
+        output_filename = quote_filename(output_filename)
+
+    output_path = os.path.normpath(os.path.join(get_default_directory(), output_filename))
+    handle_file_already_exists(output_path)
+
     if not os.path.exists(m3u8_file_path):
         print(f"Error: The m3u8 file does not exist at {m3u8_file_path}")
         return False
@@ -1879,20 +1994,21 @@ def download_m3u8_video_file_slice(m3u8_file_path, output_filename, video_start_
         "-to", video_end_time, 
         "-i", m3u8_file_path,
         "-c", "copy",
-        "-y", os.path.join(get_default_directory(), output_filename),
+        "-f", get_default_video_format().lstrip("."),
+        "-y", output_path,
     ]
 
-    print("\n" + " ".join(command) + "\n")
+    print("\nCommand: " + " ".join(command) + "\n")
 
     try:
-        subprocess.run(command, shell=True, check=True)
+        if downloader == "ffmpeg":
+            total_duration = get_m3u8_duration(m3u8_file_path)
+            use_progress_bar(command, output_filename, total_duration)
+        else:
+            subprocess.run(command, shell=True, check=True)
         return True
     except Exception:
-        try:
-            subprocess.run(" ".join(command), shell=True, check=True)
-            return True
-        except Exception:
-            return False
+        handle_retry_command(command)
 
 
 def get_VLC_Location():
@@ -1906,8 +2022,16 @@ def get_VLC_Location():
              f"{chr(i)}:/Program Files (x86)/VideoLAN/VLC/vlc.exe" for i in range(65, 91)]
             + [
                 "/Applications/VLC.app/Contents/MacOS/VLC",  # macOS default
-                "/usr/bin/vlc",  # Linux default
-                "/usr/local/bin/vlc",  # Additional common location for Linux
+                # Linux locations
+                "/usr/bin/vlc",  
+                "/usr/local/bin/vlc",
+                # Extra locations of other players
+                "C:/Program Files/MPC-HC/mpc-hc64.exe",
+                "C:/Program Files (x86)/MPC-HC/mpc-hc.exe",
+                "C:/Program Files/mpv/mpv.exe",
+                "/usr/bin/mpv",
+                "/usr/local/bin/mpv",
+                "/Applications/mpv.app/Contents/MacOS/mpv"
             ]
         )
 
@@ -1932,12 +2056,10 @@ def get_VLC_Location():
 
 
 def handle_vod_url_normal(m3u8_source, title=None, stream_date=None):
-    start = time()
     is_file = os.path.isfile(m3u8_source)
 
     if is_file:
         vod_filename = get_filename_for_file_source(m3u8_source, title=title, stream_date=stream_date)
-        print(f"\nDownloading Vod: {vod_filename}")
 
         success = download_m3u8_video_file(m3u8_source, vod_filename)
         if not success:
@@ -1945,15 +2067,13 @@ def handle_vod_url_normal(m3u8_source, title=None, stream_date=None):
         os.remove(m3u8_source)
     else:
         vod_filename = get_filename_for_url_source(m3u8_source, title=title, stream_date=stream_date)
-        print(f"\nDownloading Vod: {vod_filename}")
 
         success = download_m3u8_video_url(m3u8_source, vod_filename)
         if not success:
             print(f"\n\033[91m\u2717 Failed to download Vod: {vod_filename}\033[0m\n")
             return
 
-    formatted_elapsed = str(timedelta(seconds=int(time() - start))).zfill(8)
-    print(f"\n\033[92m\u2713 Vod downloaded to {os.path.join(get_default_directory(), vod_filename)} in {formatted_elapsed}\033[0m\n")
+    print(f"\n\033[92m\u2713 Vod downloaded to {os.path.join(get_default_directory(), vod_filename)}\033[0m\n")
 
 
 def format_date(date_string):
@@ -2150,7 +2270,6 @@ def handle_file_download_menu(m3u8_file_path):
     while True:
         start_download = print_confirm_download_menu()
         if start_download == 1:
-            start = time()
 
             streamer_name, video_id = parse_vod_filename(m3u8_file_path)
 
@@ -2163,8 +2282,7 @@ def handle_file_download_menu(m3u8_file_path):
             if not success:
                 return print(f"\n\033[91m\u2717 Failed to download Vod: {output_filename}\033[0m\n")
 
-            formatted_elapsed = str(timedelta(seconds=int(time() - start))).zfill(8)
-            print(f"\n\033[92m\u2713 Vod downloaded to {os.path.join(get_default_directory(), output_filename)} in {formatted_elapsed}\033[0m\n")
+            print(f"\n\033[92m\u2713 Vod downloaded to {os.path.join(get_default_directory(), output_filename)}\033[0m\n")
             break
 
         elif start_download == 2:
@@ -2256,7 +2374,6 @@ def fetch_twitch_data(vod_id, retries=3, delay=5):
         sleep(delay)
 
     return None
-
 
 def get_vod_or_highlight_url(vod_id):
     url = f"https://usher.ttvnw.net/vod/{vod_id}.m3u8"
@@ -2430,6 +2547,7 @@ def run_vod_recover():
             download_type = print_download_type_menu()
             if download_type == 1:
                 vod_url = print_get_m3u8_link_menu()
+                print()
                 m3u8_source = process_m3u8_configuration(vod_url)
                 handle_download_menu(m3u8_source)
             elif download_type == 2:
@@ -2487,6 +2605,7 @@ def run_vod_recover():
                     script_dir = get_script_directory()
                     config_file_path = os.path.join(script_dir, "config", "settings.json")
                     if os.path.exists(config_file_path):
+                        print(f"Opening {config_file_path}...")
                         open_file(config_file_path)
                         input("\nPress Enter to continue...")
                     else:
@@ -2506,8 +2625,13 @@ def run_vod_recover():
 if __name__ == "__main__":
     try:
         run_vod_recover()
+    except KeyboardInterrupt:
+        print("\n\nExiting...")
+        sys.exit(0)
     except Exception as e:
         print("An error occurred:", e)
         input("Press Enter to exit.")
+
+
 
 
