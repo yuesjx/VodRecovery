@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from tkinter import filedialog
 from urllib.parse import urlparse
 from unicodedata import normalize
+import glob
 import asyncio
 import grequests
 import aiohttp
@@ -23,6 +24,7 @@ from packaging import version
 import ffmpeg_downloader as ffdl
 from tqdm import tqdm
 from ffmpeg_progress_yield import FfmpegProgress
+from pathlib import Path
 
 
 CURRENT_VERSION = "1.3.3"
@@ -107,7 +109,8 @@ def print_video_mode_menu():
         "1) Website Video Recovery",
         "2) Manual Recovery",
         "3) Bulk Video Recovery from SullyGnome CSV Export",
-        "4) Return",
+        "4) Bulk Video Recovery from Multiple SullyGnome CSV Exports in Folder",
+        "5) Return",
     ]
     while True:
         print("\n".join(vod_type_options))
@@ -1494,13 +1497,127 @@ def bulk_vod_recovery():
             process_m3u8_configuration(m3u8_link)
             all_m3u8_links.append(m3u8_link)
         else:
-            print("No VODs found using the current domain list.")
+            print("\nNo VODs found using the current domain list.")
     if all_m3u8_links:
         print("All M3U8 Links found:")
         for link in all_m3u8_links:
             print(f"\033[92m{link}\033[0m")
 
     input("\nPress Enter to continue...")
+
+
+def get_and_validate_folder():
+    """Open a popup to select a folder and validate if it exists."""
+    window = tk.Tk()
+    window.wm_attributes("-topmost", 1)
+    window.withdraw()
+
+    # Open dialog to select a directory
+    folder_path = filedialog.askdirectory(parent=window, title="Select the Folder containing the CSV Files")
+    
+    if not folder_path:
+        print("\nNo valid folder selected! Returning to main menu.")
+        return run_vod_recover()
+    window.destroy()
+
+    return folder_path
+
+
+def get_incremental_filename(base_name="output", extension=".txt"):
+    """Generate a new file name with an increment if the file already exists."""
+    base = Path(f"{base_name}{extension}")
+    counter = 1
+    while base.exists():
+        base = Path(f"{base_name} ({counter}){extension}")
+        counter += 1
+    return str(base)
+
+
+def format_timestamp(timestamp):
+    """Format the timestamp to 'YYYY-MM-DD HH;MM'."""
+    try:
+        date_part, time_part = timestamp.split(" ")
+        hour_minute = time_part[:5].replace(":", ";")  # Take "HH:MM" and replace ":" with ";"
+        return f"{date_part} {hour_minute}"
+    except Exception as e:
+        print(f"Error formatting timestamp: {e}")
+        return timestamp  # Fallback to original if there's an issue
+
+
+def sort_file_contents(file_path):
+    """Sort the lines in the file based on the timestamp, treating each main line and its URL line as a unit."""
+    with open(file_path, "r", encoding="utf-8") as file:
+        lines = file.readlines()
+
+    # Group lines in pairs (main line + indented URL line)
+    paired_lines = []
+    i = 0
+    while i < len(lines) - 1:
+        if lines[i].strip() and lines[i + 1].startswith("\t-"):
+            paired_lines.append((lines[i], lines[i + 1]))
+            i += 2
+        else:
+            i += 1
+
+    # Sort the list of paired lines by the timestamp extracted from the main line
+    sorted_pairs = sorted(paired_lines, key=lambda x: x[0].split("]")[0].strip(" -"))
+
+    # Write the sorted pairs back to the file
+    with open(file_path, "w", encoding="utf-8") as file:
+        for main_line, url_line in sorted_pairs:
+            file.write(main_line)
+            file.write(url_line)
+
+
+def bulk_vod_recovery_from_folder():
+    folder_path = get_and_validate_folder()
+    if not folder_path:
+        return
+
+    # Get all CSV files in the folder
+    csv_files = glob.glob(os.path.join(folder_path, "*.csv"))
+    if not csv_files:
+        print("No CSV files found in the specified folder.")
+        return
+
+    # Prepare output file
+    output_file = get_incremental_filename()
+
+    with open(output_file, "a", encoding="utf-8") as file:
+        # Process each CSV file
+        for csv_file in csv_files:
+            print(f"\n------------------------------------------------------")
+            print(f"\nProcessing {csv_file}...")
+            try:
+                # Use parse_vod_csv_file to get timestamps and video IDs
+                vod_info = parse_vod_csv_file(csv_file)
+                
+                for timestamp, video_id in vod_info.items():
+                    print(f"\n\nRecovering Video: {video_id}")
+                    # Extract the streamer name from the CSV filename (assuming a consistent format)
+                    streamer_name = parse_streamer_from_csv_filename(csv_file)
+                    
+                    # Attempt to get the VOD URL
+                    m3u8_link = asyncio.run(get_vod_urls(streamer_name.lower(), video_id, timestamp))
+
+                    if m3u8_link is not None:
+                        process_m3u8_configuration(m3u8_link)
+                        # Write to output.txt in the desired format
+                        formatted_timestamp = format_timestamp(timestamp)
+                        file.write(f"- {formatted_timestamp}] {streamer_name} – \n\t- {m3u8_link} ()\n")
+                        print(f"Recovered and saved: {streamer_name} ({formatted_timestamp})")
+                    else:
+                        # Write to output.txt in the desired format
+                        formatted_timestamp = format_timestamp(timestamp)
+                        file.write(f"- {formatted_timestamp}] {streamer_name} – \n\t-  ()\n")
+                        print(f"\n\nFailed to find M3U8 URL for video ID {video_id}.")
+                
+            except Exception as e:
+                print(f"\nFailed to process {csv_file}: {e}")
+
+    # Sort the file contents after all entries have been added
+    sort_file_contents(output_file)
+    print(f"\nBatch processing completed. Results saved to: {output_file}")
 
 
 def clip_recover(streamer, video_id, duration):
@@ -2516,6 +2633,8 @@ def run_vod_recover():
             elif vod_mode == 3:
                 bulk_vod_recovery()
             elif vod_mode == 4:
+                bulk_vod_recovery_from_folder()
+            elif vod_mode == 5:
                 continue
         elif menu == 2:
             clip_type = print_clip_type_menu()
